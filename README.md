@@ -16,8 +16,8 @@
 
 ## Prerequisiti
 
-- Scheda Arduino compatibile (consigliata Arduino UNO)
-- Componenti elettronici di base (motori, pulsanti, LED, buzzer, ecc.)
+- Scheda Arduino compatibile (consigliata Arduino UNO o scheda basata su ESP32)
+- Componenti elettronici (motori servo a rotazione continua, pulsanti, batterie lipo, LED, buzzer, cavetti di collegamento, ecc.)
 - Stampante 3D per realizzazione tasti (ma puoi realizzarla anche in altri modi più semplici)
 - [Facoltativo] Sensori aggiuntivi per estensioni (come sensori di distanza o line follower)
 - IDE Arduino per la programmazione
@@ -38,8 +38,8 @@
 
 ## Utilizzo
 
-1. Accendi elirobot.
-2. Utilizza la tastiera posta sulla parte superiore per impartire i comandi desiderati.
+1. Accendi/alimenta elirobot.
+2. Utilizza la pulsantiera posta sulla parte superiore per impartire i comandi desiderati.
 3. Sperimenta con le funzioni di movimento e le funzioni speciali.
 4. Puoi modificare il codice o aggiungere nuove funzionalità per personalizzare il robot.
 
@@ -49,7 +49,7 @@ Contributi e idee sono i benvenuti! Puoi:
 
 - Segnalare bug o suggerire nuove funzionalità tramite le issue
 - Inviare pull request per miglioramenti hardware/software
-- Proporre schemi alternativi o materiale didattico
+- Proporre implementazioni alternative o materiale didattico
 
 ## Licenza
 
