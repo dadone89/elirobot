@@ -1,11 +1,21 @@
-#include <Servo.h>
+#include <ESP32Servo.h>
+
 Servo myservo1;
 Servo myservo2;
 bool btnU, btnR, btnD, btnL, btnC = false;
 bool btnUR, btnDR, btnDL, btnUL, btnDummy = false;
 
-int thresholdsA0[] = { 0, 300, 550, 700, 790, 900 };
-int thresholdsA1[] = { 0, 400, 600, 720, 900, 1000 };
+// Pin analogici per ESP32 30-pin (pin ADC disponibili)
+#define ANALOG_PIN_0 32  // Sostituisce A0 (ADC1_CH4)
+#define ANALOG_PIN_1 33  // Sostituisce A1 (ADC1_CH5)
+
+// Pin PWM per i servo (GPIO con supporto PWM)
+#define SERVO_PIN_1 25   // GPIO25 (DAC1)
+#define SERVO_PIN_2 26   // GPIO26 (DAC2)
+
+// Soglie adattate per ESP32 (risoluzione ADC 12-bit: 0-4095)
+int thresholdsA0[] = { 0, 1200, 2200, 2800, 3160, 3600 };
+int thresholdsA1[] = { 0, 1600, 2400, 2880, 3600, 4000 };
 
 // Array per memorizzare la sequenza di movimenti
 char moveSequence[50];  // Massimo 50 movimenti
@@ -20,19 +30,31 @@ bool lastBtnU = false, lastBtnR = false, lastBtnD = false, lastBtnL = false, las
 
 void setup() {
   Serial.begin(115200);
-  myservo1.attach(9);
-  myservo2.attach(10);
+  
+  // Configurazione ADC per migliore stabilità
+  analogReadResolution(12);  // Imposta risoluzione a 12-bit
+  analogSetAttenuation(ADC_11db);  // Permette lettura fino a 3.3V
+  
+  // Configurazione servo con pin specifici
+  myservo1.attach(SERVO_PIN_1);
+  myservo2.attach(SERVO_PIN_2);
   
   // Ferma i motori all'avvio
   myservo1.write(90);
   myservo2.write(90);
   
-  Serial.println("Sistema pronto! Registra i movimenti e premi C per riprodurli");
+  Serial.println("ESP32-30pin Sistema pronto! Registra i movimenti e premi C per riprodurli");
+  Serial.println("Pin analogici: GPIO32, GPIO33 - Pin servo: GPIO25, GPIO26");
+  Serial.println("Risoluzione ADC: 12-bit (0-4095)");
 }
 
 void loop() {
-  decodeButton(analogRead(A0), thresholdsA0, &btnC, &btnDL, &btnUL, &btnUR, &btnDR);
-  decodeButton(analogRead(A1), thresholdsA1, &btnL, &btnU, &btnR, &btnD, &btnDummy);
+  // Lettura valori analogici con media mobile per stabilità
+  int analog0 = getStableAnalogRead(ANALOG_PIN_0);
+  int analog1 = getStableAnalogRead(ANALOG_PIN_1);
+  
+  decodeButton(analog0, thresholdsA0, &btnC, &btnDL, &btnUL, &btnUR, &btnDR);
+  decodeButton(analog1, thresholdsA1, &btnL, &btnU, &btnR, &btnD, &btnDummy);
   
   // Se stiamo riproducendo la sequenza
   if (isPlayingSequence) {
@@ -94,6 +116,16 @@ void loop() {
   lastBtnC = btnC;
   
   delay(50);
+}
+
+// Funzione per lettura analogica stabile (media di 3 letture)
+int getStableAnalogRead(int pin) {
+  int sum = 0;
+  for (int i = 0; i < 3; i++) {
+    sum += analogRead(pin);
+    delayMicroseconds(100);
+  }
+  return sum / 3;
 }
 
 void addToSequence(char move) {
