@@ -13,12 +13,16 @@ bool btnUR, btnDR, btnDL, btnUL, btnDummy = false;
 #define SERVO_PIN_1 25   // GPIO25 (DAC1)
 #define SERVO_PIN_2 26   // GPIO26 (DAC2)
 
+// Debug settings
+#define DEBUG_MOVEMENTS false  // Imposta a true per abilitare i messaggi di debug dei movimenti
+#define DEBUG_ANALOG true     // Imposta a true per vedere i valori analogici in tempo reale
+
 // Soglie adattate per ESP32 (risoluzione ADC 12-bit: 0-4095)
-int thresholdsA0[] = { 0, 1200, 2200, 2800, 3160, 3600 };
+int thresholdsA0[] = { 0, 1200, 2200, 2800, 3050, 3600 };
 int thresholdsA1[] = { 0, 1600, 2400, 2880, 3600, 4000 };
 
 // Array per memorizzare la sequenza di movimenti
-char moveSequence[50];  // Massimo 50 movimenti
+char moveSequence[10];  // Massimo 10 movimenti
 int sequenceIndex = 0;
 bool isPlayingSequence = false;
 int playIndex = 0;
@@ -56,6 +60,30 @@ void loop() {
   decodeButton(analog0, thresholdsA0, &btnC, &btnDL, &btnUL, &btnUR, &btnDR);
   decodeButton(analog1, thresholdsA1, &btnL, &btnU, &btnR, &btnD, &btnDummy);
   
+  // Debug valori analogici e tasti rilevati se abilitato
+  if (DEBUG_ANALOG) {
+    Serial.print("A0(GPIO32): ");
+    Serial.print(analog0);
+    Serial.print(" | A1(GPIO33): ");
+    Serial.print(analog1);
+    Serial.print(" | Tasti: ");
+    
+    // Mostra i tasti attivi
+    bool anyButton = false;
+    if (btnU) { Serial.print("U "); anyButton = true; }
+    if (btnD) { Serial.print("D "); anyButton = true; }
+    if (btnL) { Serial.print("L "); anyButton = true; }
+    if (btnR) { Serial.print("R "); anyButton = true; }
+    if (btnC) { Serial.print("C "); anyButton = true; }
+    if (btnUL) { Serial.print("UL "); anyButton = true; }
+    if (btnUR) { Serial.print("UR "); anyButton = true; }
+    if (btnDL) { Serial.print("DL "); anyButton = true; }
+    if (btnDR) { Serial.print("DR "); anyButton = true; }
+    
+    if (!anyButton) Serial.print("Nessuno");
+    Serial.println();
+  }
+  
   // Se stiamo riproducendo la sequenza
   if (isPlayingSequence) {
     playSequence();
@@ -89,23 +117,6 @@ void loop() {
     } else {
       Serial.println("Nessuna sequenza registrata!");
     }
-  }
-  
-  // Controllo motori in tempo reale durante la registrazione
-  if (btnD) {
-    moveForward();
-  }
-  else if (btnU) {
-    moveBackward();
-  }
-  else if (btnL) {
-    moveLeft();
-  }
-  else if (btnR) {
-    moveRight();
-  }
-  else {
-    stopMotors();
   }
   
   // Salva lo stato precedente dei tasti
@@ -199,25 +210,25 @@ void playSequence() {
 }
 
 void moveForward() {
-  Serial.println("DEBUG: Movimento AVANTI");
+  if (DEBUG_MOVEMENTS) Serial.println("DEBUG: Movimento AVANTI");
   myservo1.write(180);  // Motore 1 avanti
   myservo2.write(0);    // Motore 2 avanti
 }
 
 void moveBackward() {
-  Serial.println("DEBUG: Movimento INDIETRO");
+  if (DEBUG_MOVEMENTS) Serial.println("DEBUG: Movimento INDIETRO");
   myservo1.write(0);    // Motore 1 indietro
   myservo2.write(180);  // Motore 2 indietro
 }
 
 void moveLeft() {
-  Serial.println("DEBUG: Movimento SINISTRA");
+  if (DEBUG_MOVEMENTS) Serial.println("DEBUG: Movimento SINISTRA");
   myservo1.write(0);    // Motore 1 indietro
   myservo2.write(0);    // Motore 2 avanti
 }
 
 void moveRight() {
-  Serial.println("DEBUG: Movimento DESTRA");
+  if (DEBUG_MOVEMENTS) Serial.println("DEBUG: Movimento DESTRA");
   myservo1.write(180);  // Motore 1 avanti
   myservo2.write(180);  // Motore 2 indietro
 }
