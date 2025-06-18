@@ -15,7 +15,7 @@ bool btnUR, btnDR, btnDL, btnUL, btnDummy = false;
 
 // Debug settings
 #define DEBUG_MOVEMENTS false  // Imposta a true per abilitare i messaggi di debug dei movimenti
-#define DEBUG_ANALOG true     // Imposta a true per vedere i valori analogici in tempo reale
+#define DEBUG_ANALOG false     // Imposta a true per vedere i valori analogici in tempo reale
 
 // Soglie adattate per ESP32 (risoluzione ADC 12-bit: 0-4095)
 int thresholdsA0[] = { 0, 1200, 2200, 2800, 3050, 3600 };
@@ -140,7 +140,7 @@ int getStableAnalogRead(int pin) {
 }
 
 void addToSequence(char move) {
-  if (sequenceIndex < 49) { // Lascia spazio per il terminatore
+  if (sequenceIndex < 9) { // Lascia spazio per il terminatore
     moveSequence[sequenceIndex] = move;
     sequenceIndex++;
     moveSequence[sequenceIndex] = '\0'; // Terminatore stringa
@@ -174,38 +174,38 @@ void startPlayback() {
 void playSequence() {
   unsigned long currentTime = millis();
   
-  if (playIndex >= sequenceIndex) {
-    // Sequenza completata
-    Serial.println("Sequenza completata!");
-    isPlayingSequence = false;
-    stopMotors();
-    resetSequence(); // Resetta per una nuova sequenza
-    return;
-  }
-  
   if (currentTime - lastMoveTime >= moveDuration) {
-    // Esegui il movimento corrente
-    char currentMove = moveSequence[playIndex];
-    Serial.print("Eseguendo movimento: ");
-    Serial.println(currentMove);
-    
-    switch (currentMove) {
-      case 'U':
-        moveBackward();
-        break;
-      case 'D':
-        moveForward();
-        break;
-      case 'L':
-        moveLeft();
-        break;
-      case 'R':
-        moveRight();
-        break;
+    // Controlla se ci sono ancora movimenti da eseguire
+    if (playIndex < sequenceIndex) {
+      // Esegui il movimento corrente
+      char currentMove = moveSequence[playIndex];
+      Serial.print("Eseguendo movimento: ");
+      Serial.println(currentMove);
+      
+      switch (currentMove) {
+        case 'U':
+          moveBackward();
+          break;
+        case 'D':
+          moveForward();
+          break;
+        case 'L':
+          moveLeft();
+          break;
+        case 'R':
+          moveRight();
+          break;
+      }
+      
+      playIndex++;
+      lastMoveTime = currentTime;
+    } else {
+      // Sequenza completata - questo controllo ora viene fatto DOPO l'esecuzione
+      Serial.println("Sequenza completata!");
+      isPlayingSequence = false;
+      stopMotors();
+      resetSequence(); // Resetta per una nuova sequenza
     }
-    
-    playIndex++;
-    lastMoveTime = currentTime;
   }
 }
 
