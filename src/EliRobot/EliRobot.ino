@@ -42,8 +42,8 @@ const unsigned long moveDuration = 1000;  // Durata di ogni movimento in ms
 // Per evitare ripetizioni dei tasti
 bool lastBtnU = false, lastBtnR = false, lastBtnD = false, lastBtnL = false, lastBtnC = false;
 
-// Funzione beep via I2S (DAC esterno, onda quadra) - CORRETTA
-
+// Funzione beep via I2S (DAC esterno, onda quadra) 
+/*
 void beepI2S(int freq = BEEP_FREQ, int duration = BEEP_DURATION) {
   int samples = I2S_SAMPLE_RATE * duration / 1000;
   int period = I2S_SAMPLE_RATE / freq;
@@ -77,7 +77,7 @@ void beepI2S(int freq = BEEP_FREQ, int duration = BEEP_DURATION) {
     sent += to_write;
   }
   free(buf);
-}
+}*/
 
 void setup() {
   Serial.begin(115200);
