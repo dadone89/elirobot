@@ -6,12 +6,12 @@ bool btnU, btnR, btnD, btnL, btnC = false;
 bool btnUR, btnDR, btnDL, btnUL, btnDummy = false;
 
 // Pin analogici per ESP32 30-pin (pin ADC disponibili)
-#define ANALOG_PIN_0 32  // Sostituisce A0 (ADC1_CH4)
-#define ANALOG_PIN_1 33  // Sostituisce A1 (ADC1_CH5)
+#define BTN_PIN_0 34
+#define BTN_PIN_1 35
 
 // Pin PWM per i servo (GPIO con supporto PWM)
-#define SERVO_PIN_1 25   // GPIO25 (DAC1)
-#define SERVO_PIN_2 26   // GPIO26 (DAC2)
+#define SERVO_PIN_1 32  
+#define SERVO_PIN_2 33 
 
 // Debug settings
 #define DEBUG_MOVEMENTS false  // Imposta a true per abilitare i messaggi di debug dei movimenti
@@ -54,8 +54,8 @@ void setup() {
 
 void loop() {
   // Lettura valori analogici con media mobile per stabilità
-  int analog0 = getStableAnalogRead(ANALOG_PIN_0);
-  int analog1 = getStableAnalogRead(ANALOG_PIN_1);
+  int analog0 = getStableAnalogRead(BTN_PIN_0);
+  int analog1 = getStableAnalogRead(BTN_PIN_1);
   
   decodeButton(analog0, thresholdsA0, &btnC, &btnDL, &btnUL, &btnUR, &btnDR);
   decodeButton(analog1, thresholdsA1, &btnL, &btnU, &btnR, &btnD, &btnDummy);
