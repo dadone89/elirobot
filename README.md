@@ -1,3 +1,7 @@
+![Development Status](https://img.shields.io/badge/Status-In%20Development-yellow)
+![Version](https://img.shields.io/badge/Version-0.1.0--alpha-red)
+![Build](https://img.shields.io/badge/Build-Unstable-red)
+
 # elirobot
 
 **elirobot** è un robottino educativo progettato per bambini, basato su Arduino. Il bambino può impartire comandi direttamente utilizzando la tastiera integrata nella parte superiore del robot. I comandi includono movimenti di base e funzioni speciali pensate per stimolare la creatività e l’apprendimento del coding.
