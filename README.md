@@ -12,7 +12,7 @@
 
 ## Prerequisiti
 
-- Scheda Arduino compatibile (consigliata Arduino UNO o scheda basata su ESP32)
+- Scheda Arduino compatibile (nello specifico ho utilizzato un ESP32DevModule a 30pin, scheda basata su ESP32)
 - Componenti elettronici (motori servo a rotazione continua, pulsanti, batterie lipo, LED, buzzer, cavetti di collegamento, ecc.)
 - Stampante 3D per realizzazione tasti (ma puoi realizzarla anche in altri modi più semplici)
 - [Facoltativo] Sensori aggiuntivi per estensioni (come sensori di distanza o line follower)
@@ -30,7 +30,7 @@
 
 3. Collega i componenti secondo lo schema presente nella cartella `docs/hardware` (o segui le istruzioni nel file `SCHEMA.md` se disponibile).
 
-4. Carica lo sketch sulla scheda Arduino.
+4. Carica lo sketch sulla scheda, se utilizzi ESP32 assicurati di avere prima installato dal board manager il supporto alla scheda, nel mio caso ho utilizzato ESP32 by Espressif V3.2.0.
 
 ## Utilizzo
 
