@@ -198,7 +198,7 @@ void loop() {
   if (i2s_initialized && !wavFiles.empty()) {
     if (!isPlayingAudio) {
       // Avvia riproduzione nuovo file
-      if (millis() - lastAudioTime > 1000) {  // Pausa di 1 secondo tra file
+      if (millis() - lastAudioTime > 3000) {  // Pausa di 1 secondo tra file
         String currentFile = wavFiles[currentFileIndex];
         if (startWAVFile(currentFile.c_str())) {
           isPlayingAudio = true;
@@ -217,7 +217,7 @@ void loop() {
     }
   }
 
-  delay(10);  // Piccolo delay per non sovraccaricare
+  delay(50);  // Piccolo delay per non sovraccaricare
 }
 
 // ========== FUNZIONI ROBOT ==========
