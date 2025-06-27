@@ -1,74 +1,103 @@
 #include <ESP32Servo.h>
+#include <LittleFS.h>
+#include <driver/i2s.h>
+#include "driver/adc.h"
+#include <esp_task_wdt.h>
 
+// Macro helper per min/max con tipi diversi
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+// File audio
+#define PRESENTAZIONE_AUDIO "/elirobot.wav"
+#define ISTRUZIONI_AUDIO "/Frecce_e_centrale.wav"
+#define START_SEQ_AUDIO "/Adesso_si_balla.wav"
+
+// Pin analogici per ESP32 30-pin
+#define BUTTONS_PIN_0 34
+#define BUTTONS_PIN_1 35
+
+// Pin PWM per i servo
+#define SERVO_PIN_1 32
+#define SERVO_PIN_2 33
+
+#define MOVE_DURATION 2000  // Durata movimento in ms
+
+// Note musicali
+#define NOTE_C4 262
+#define NOTE_D4 294
+#define NOTE_E4 330
+#define NOTE_F4 349
+#define NOTE_G4 392
+
+// ========== CONFIGURAZIONE AUDIO ==========
+#define I2S_BCK_PIN 26
+#define I2S_WS_PIN 25
+#define I2S_DATA_PIN 22
+#define I2S_NUM I2S_NUM_0
+
+#define SAMPLE_RATE 8000
+#define BITS_PER_SAMPLE I2S_BITS_PER_SAMPLE_16BIT
+#define DMA_BUF_COUNT 4
+#define DMA_BUF_LEN 512
+#define VOLUME 0.6f
+
+const char *audioFiles[] = {
+  PRESENTAZIONE_AUDIO,
+  ISTRUZIONI_AUDIO,
+  START_SEQ_AUDIO
+};
+
+// Soglie per ESP32 (12-bit ADC: 0-4095)
+int thresholdsA0[] = { 0, 1200, 2200, 2800, 3050, 3600 };
+int thresholdsA1[] = { 0, 1600, 2400, 2880, 3600, 4000 };
+
+// ========== CONFIGURAZIONE ROBOT ==========
 Servo myservo1;
 Servo myservo2;
 bool btnU, btnR, btnD, btnL, btnC = false;
 bool btnUR, btnDR, btnDL, btnUL, btnDummy = false;
 
-// Pin analogici per ESP32 30-pin (pin ADC disponibili)
-#define BUTTONS_PIN_0 34
-#define BUTTONS_PIN_1 35
-
-// Pin PWM per i servo (GPIO con supporto PWM)
-#define SERVO_PIN_1 32
-#define SERVO_PIN_2 33
-
-// Pin per il buzzer (aggiungi questa definizione)
-#define BUZZER_PIN 25
-
-// Debug settings
-#define DEBUG_MOVEMENTS false  // Imposta a true per abilitare i messaggi di debug dei movimenti
-#define DEBUG_ANALOG false     // Imposta a true per vedere i valori analogici in tempo reale
-
-#define MOVE_DURATION 2000  // Durata di ogni movimento in ms
-
-// Soglie adattate per ESP32 (risoluzione ADC 12-bit: 0-4095)
-int thresholdsA0[] = { 0, 1200, 2200, 2800, 3050, 3600 };
-int thresholdsA1[] = { 0, 1600, 2400, 2880, 3600, 4000 };
-
-// Definizione delle note musicali (frequenze in Hz)
-#define NOTE_C4 262
-#define NOTE_CS4 277
-#define NOTE_D4 294
-#define NOTE_DS4 311
-#define NOTE_E4 330
-#define NOTE_F4 349
-#define NOTE_FS4 370
-#define NOTE_G4 392
-#define NOTE_GS4 415
-#define NOTE_A4 440
-#define NOTE_AS4 466
-#define NOTE_B4 494
-#define NOTE_C5 523
-#define NOTE_CS5 554
-#define NOTE_D5 587
-#define NOTE_DS5 622
-#define NOTE_E5 659
-#define NOTE_F5 698
-#define NOTE_FS5 740
-#define NOTE_G5 784
-#define NOTE_GS5 831
-#define NOTE_A5 880
-#define NOTE_AS5 932
-#define NOTE_B5 988
-#define NOTE_C6 1047
-#define REST 0
-
-// Array per memorizzare la sequenza di movimenti
-char moveSequence[10];  // Massimo 10 movimenti
+// Variabili per sequenza movimenti
+char moveSequence[10];
 int sequenceIndex = 0;
 bool isPlayingSequence = false;
 int playIndex = 0;
 unsigned long lastMoveTime = 0;
-
-// Per evitare ripetizioni dei tasti
 bool lastBtnU = false, lastBtnR = false, lastBtnD = false, lastBtnL = false, lastBtnC = false;
 
-// Dichiarazioni delle funzioni
-void playNote(int frequency, int duration = 200);
+// ========== VARIABILI AUDIO SEMPLIFICATE ==========
+static int16_t audio_buffer[DMA_BUF_LEN * 2];
+static bool i2s_initialized = false;
+bool wavFilesExists = false;
+bool isPlayingAudio = false;
+File currentAudioFile;
+size_t currentBytesRead = 0;
+size_t currentTotalBytes = 0;
+
+// Header WAV semplificato
+struct WAVHeader {
+  char riff[4];
+  uint32_t fileSize;
+  char wave[4];
+  char fmt[4];
+  uint32_t fmtSize;
+  uint16_t audioFormat;
+  uint16_t numChannels;
+  uint32_t sampleRate;
+  uint32_t byteRate;
+  uint16_t blockAlign;
+  uint16_t bitsPerSample;
+  char data[4];
+  uint32_t dataSize;
+};
+
+WAVHeader currentHeader;
+
+// ========== DICHIARAZIONI FUNZIONI ==========
+void decodeButton(int value, const int thresholds[], bool *level0, bool *level1, bool *level2, bool *level3, bool *level4);
 int getStableAnalogRead(int pin);
 void addToSequence(char move);
-void printSequence();
 void resetSequence();
 void startPlayback();
 void playSequence();
@@ -77,170 +106,197 @@ void moveBackward();
 void moveLeft();
 void moveRight();
 void stopMotors();
-void decodeButton(int value, const int thresholds[], bool *level0, bool *level1, bool *level2, bool *level3, bool *level4);
+bool initializeI2S();
+bool playAudioFile(const char *filename);  // NUOVA FUNZIONE SEMPLIFICATA
+void processAudioChunk();
+void stopAudioPlayback();
+bool checkAudioFileExists(const char *filename);
+int analogReadLegacy(uint8_t gpio_num);
 
 void setup() {
   Serial.begin(115200);
+  delay(1000);
 
-  // Configurazione ADC per migliore stabilità
-  analogReadResolution(12);        // Imposta risoluzione a 12-bit
-  analogSetAttenuation(ADC_11db);  // Permette lettura fino a 3.3V
+  Serial.println("=== ESP32 Robot Controller + Audio Player ===");
 
-  // Configurazione servo con pin specifici
+  // Configurazione servo
   myservo1.attach(SERVO_PIN_1);
   myservo2.attach(SERVO_PIN_2);
 
-  // Configurazione pin buzzer
-  pinMode(BUZZER_PIN, OUTPUT);
-
-  // Ferma i motori all'avvio
+  // Ferma motori
   myservo1.write(90);
   myservo2.write(90);
 
-  Serial.println("ESP32-30pin Sistema pronto! Registra i movimenti e premi C per riprodurli");
+  // Inizializza filesystem
+  if (!LittleFS.begin(false)) {
+    Serial.println("Formattazione LittleFS...");
+    LittleFS.format();
+    LittleFS.begin(false);
+  }
+
+  // Inizializza I2S
+  if (!initializeI2S()) {
+    Serial.println("Errore I2S - Audio disabilitato");
+  } else {
+    // Verifica esistenza file
+    wavFilesExists = true;
+    for (int i = 0; i < sizeof(audioFiles) / sizeof(audioFiles[0]); i++) {
+      if (!checkAudioFileExists(audioFiles[i])) {
+        Serial.printf("Errore: File '%s' non trovato!\n", audioFiles[i]);
+        wavFilesExists = false;
+      } else {
+        Serial.printf("File '%s' trovato e pronto.\n", audioFiles[i]);
+      }
+    }
+  }
+  Serial.println("Setup completato!");
+
+  if (wavFilesExists) {
+    delay(1000);
+    playAudioFile(ISTRUZIONI_AUDIO);
+  }
 }
 
 void loop() {
-  // Lettura valori analogici con media mobile per stabilità
+  // ========== GESTIONE ROBOT ==========
   int analog0 = getStableAnalogRead(BUTTONS_PIN_0);
   int analog1 = getStableAnalogRead(BUTTONS_PIN_1);
 
   decodeButton(analog0, thresholdsA0, &btnC, &btnDL, &btnUL, &btnUR, &btnDR);
   decodeButton(analog1, thresholdsA1, &btnL, &btnU, &btnR, &btnD, &btnDummy);
 
-  // Debug valori analogici e tasti rilevati se abilitato
-  if (DEBUG_ANALOG) {
-    Serial.print("A0(GPIO34): ");
-    Serial.print(analog0);
-    Serial.print(" | A1(GPIO35): ");
-    Serial.print(analog1);
-    Serial.print(" | Tasti: ");
-
-    // Mostra i tasti attivi
-    bool anyButton = false;
-    if (btnU) {
-      Serial.print("U ");
-      anyButton = true;
-    }
-    if (btnD) {
-      Serial.print("D ");
-      anyButton = true;
-    }
-    if (btnL) {
-      Serial.print("L ");
-      anyButton = true;
-    }
-    if (btnR) {
-      Serial.print("R ");
-      anyButton = true;
-    }
-    if (btnC) {
-      Serial.print("C ");
-      anyButton = true;
-    }
-    if (btnUL) {
-      Serial.print("UL ");
-      anyButton = true;
-    }
-    if (btnUR) {
-      Serial.print("UR ");
-      anyButton = true;
-    }
-    if (btnDL) {
-      Serial.print("DL ");
-      anyButton = true;
-    }
-    if (btnDR) {
-      Serial.print("DR ");
-      anyButton = true;
-    }
-
-    if (!anyButton) Serial.print("Nessuno");
-    Serial.println();
-  }
-
-  // Se stiamo riproducendo la sequenza
+  // Gestione sequenza
   if (isPlayingSequence) {
     playSequence();
-    return;
-  }
-
-  // Registrazione dei movimenti (solo sui fronti di salita)
-  if (btnU && !lastBtnU) {
-    playNote(NOTE_C4);
-    addToSequence('U');
-    Serial.println("Movimento UP aggiunto alla sequenza");
-  }
-  if (btnD && !lastBtnD) {
-    playNote(NOTE_D4);
-    addToSequence('D');
-    Serial.println("Movimento DOWN aggiunto alla sequenza");
-  }
-  if (btnL && !lastBtnL) {
-    playNote(NOTE_E4);
-    addToSequence('L');
-    Serial.println("Movimento LEFT aggiunto alla sequenza");
-  }
-  if (btnR && !lastBtnR) {
-    playNote(NOTE_F4);
-    addToSequence('R');
-    Serial.println("Movimento RIGHT aggiunto alla sequenza");
-  }
-  if (btnC && !lastBtnC) {
-    playNote(NOTE_G4);
-    if (sequenceIndex > 0) {
-      Serial.println("Avvio riproduzione sequenza:");
-      printSequence();
-      startPlayback();
-    } else {
-      Serial.println("Nessuna sequenza registrata!");
+  } else {
+    // Registrazione movimenti
+    if (btnU && !lastBtnU) {
+      addToSequence('U');
+      Serial.println("UP aggiunto");
+    }
+    if (btnD && !lastBtnD) {
+      addToSequence('D');
+      Serial.println("DOWN aggiunto");
+    }
+    if (btnL && !lastBtnL) {
+      addToSequence('L');
+      Serial.println("LEFT aggiunto");
+    }
+    if (btnR && !lastBtnR) {
+      addToSequence('R');
+      Serial.println("RIGHT aggiunto");
+    }
+    if (btnC && !lastBtnC) {
+      if (sequenceIndex > 0) {
+        Serial.println("Avvio riproduzione sequenza");
+        // ESEMPIO: Riproduci audio prima di iniziare la sequenza
+        if (wavFilesExists) {
+          delay(1000);
+          playAudioFile(START_SEQ_AUDIO);
+        }
+        startPlayback();
+      } else {
+        Serial.println("Nessuna sequenza registrata!");
+      }
     }
   }
 
-  // Salva lo stato precedente dei tasti
+  // Salva stato precedente
   lastBtnU = btnU;
   lastBtnR = btnR;
   lastBtnD = btnD;
   lastBtnL = btnL;
   lastBtnC = btnC;
 
+  // ========== GESTIONE AUDIO ==========
+  if (isPlayingAudio) {
+    processAudioChunk();
+  }
+
   delay(50);
 }
 
-// Funzione per lettura analogica stabile (media di 3 letture)
+// ========== FUNZIONE AUDIO SEMPLIFICATA ==========
+bool playAudioFile(const char *filename) {
+  // Se c'è già un audio in riproduzione, fermalo
+  if (isPlayingAudio) {
+    stopAudioPlayback();
+  }
+
+  // Verifica se l'audio è inizializzato e i file esistono
+  if (!i2s_initialized || !wavFilesExists) {
+    Serial.println("❌ Audio non disponibile");
+    return false;
+  }
+
+  // Apri il file
+  if (currentAudioFile) {
+    currentAudioFile.close();
+  }
+
+  currentAudioFile = LittleFS.open(filename, "r");
+  if (!currentAudioFile) {
+    Serial.printf("❌ Impossibile aprire file: %s\n", filename);
+    return false;
+  }
+
+  // Leggi header WAV
+  if (currentAudioFile.read((uint8_t *)&currentHeader, sizeof(WAVHeader)) != sizeof(WAVHeader)) {
+    Serial.println("❌ Errore lettura header WAV");
+    currentAudioFile.close();
+    return false;
+  }
+
+  // Verifica formato
+  if (memcmp(currentHeader.riff, "RIFF", 4) != 0 || memcmp(currentHeader.wave, "WAVE", 4) != 0 || currentHeader.audioFormat != 1) {
+    Serial.println("❌ Formato WAV non supportato (solo PCM)");
+    currentAudioFile.close();
+    return false;
+  }
+
+  // Posiziona all'inizio dei dati audio
+  currentAudioFile.seek(sizeof(WAVHeader));
+  currentTotalBytes = currentHeader.dataSize;
+  currentBytesRead = 0;
+  isPlayingAudio = true;
+
+  Serial.printf("🎵 Riproduzione: %s\n", filename);
+  return true;
+}
+
+// ========== RESTO DELLE FUNZIONI (invariate) ==========
 int getStableAnalogRead(int pin) {
   int sum = 0;
   for (int i = 0; i < 3; i++) {
-    sum += analogRead(pin);
+    sum += analogReadLegacy(pin);
     delayMicroseconds(100);
   }
   return sum / 3;
 }
 
-void addToSequence(char move) {
-  if (sequenceIndex < 9) {  // Lascia spazio per il terminatore
-    moveSequence[sequenceIndex] = move;
-    sequenceIndex++;
-    moveSequence[sequenceIndex] = '\0';  // Terminatore stringa
-  } else {
-    Serial.println("Sequenza piena! Resetto...");
-    resetSequence();
-  }
+void decodeButton(int value, const int thresholds[], bool *level0, bool *level1, bool *level2, bool *level3, bool *level4) {
+  *level0 = *level1 = *level2 = *level3 = *level4 = false;
+
+  if (value >= thresholds[0] && value < thresholds[1]) *level0 = true;
+  else if (value >= thresholds[1] && value < thresholds[2]) *level1 = true;
+  else if (value >= thresholds[2] && value < thresholds[3]) *level2 = true;
+  else if (value >= thresholds[3] && value < thresholds[4]) *level3 = true;
+  else if (value >= thresholds[4] && value <= thresholds[5]) *level4 = true;
 }
 
-void printSequence() {
-  Serial.print("Sequenza registrata: ");
-  for (int i = 0; i < sequenceIndex; i++) {
-    Serial.print(moveSequence[i]);
-    Serial.print(" ");
+void addToSequence(char move) {
+  if (sequenceIndex < 9) {
+    moveSequence[sequenceIndex] = move;
+    sequenceIndex++;
+    moveSequence[sequenceIndex] = '\0';
+  } else {
+    resetSequence();
   }
-  Serial.println();
 }
 
 void resetSequence() {
   sequenceIndex = 0;
   moveSequence[0] = '\0';
-  Serial.println("Sequenza resettata");
 }
 
 void startPlayback() {
@@ -253,96 +309,183 @@ void playSequence() {
   unsigned long currentTime = millis();
 
   if (currentTime - lastMoveTime >= MOVE_DURATION) {
-    // Controlla se ci sono ancora movimenti da eseguire
     if (playIndex < sequenceIndex) {
-      // Esegui il movimento corrente
       char currentMove = moveSequence[playIndex];
-      Serial.print("Eseguendo movimento: ");
-      Serial.println(currentMove);
 
       switch (currentMove) {
-        case 'U':
-          moveBackward();
-          break;
-        case 'D':
-          moveForward();
-          break;
-        case 'L':
-          moveLeft();
-          break;
-        case 'R':
-          moveRight();
-          break;
+        case 'U': moveBackward(); break;
+        case 'D': moveForward(); break;
+        case 'L': moveLeft(); break;
+        case 'R': moveRight(); break;
       }
 
       playIndex++;
       lastMoveTime = currentTime;
     } else {
-      // Sequenza completata - questo controllo ora viene fatto DOPO l'esecuzione
-      Serial.println("Sequenza completata!");
       isPlayingSequence = false;
       stopMotors();
-      resetSequence();  // Resetta per una nuova sequenza
+      resetSequence();
+      delay(1000);
+      if (wavFilesExists) {
+        delay(1000);
+        playAudioFile(ISTRUZIONI_AUDIO);
+      }
     }
   }
 }
 
 void moveForward() {
-  if (DEBUG_MOVEMENTS) Serial.println("DEBUG: Movimento AVANTI");
-  myservo1.write(180);  // Motore 1 avanti
-  myservo2.write(0);    // Motore 2 avanti
+  myservo1.write(180);
+  myservo2.write(0);
 }
 
 void moveBackward() {
-  if (DEBUG_MOVEMENTS) Serial.println("DEBUG: Movimento INDIETRO");
-  myservo1.write(0);    // Motore 1 indietro
-  myservo2.write(180);  // Motore 2 indietro
+  myservo1.write(0);
+  myservo2.write(180);
 }
 
 void moveLeft() {
-  if (DEBUG_MOVEMENTS) Serial.println("DEBUG: Movimento SINISTRA");
-  myservo1.write(0);  // Motore 1 indietro
-  myservo2.write(0);  // Motore 2 avanti
+  myservo1.write(0);
+  myservo2.write(0);
 }
 
 void moveRight() {
-  if (DEBUG_MOVEMENTS) Serial.println("DEBUG: Movimento DESTRA");
-  myservo1.write(180);  // Motore 1 avanti
-  myservo2.write(180);  // Motore 2 indietro
+  myservo1.write(180);
+  myservo2.write(180);
 }
 
 void stopMotors() {
-  myservo1.write(90);  // Stop motore 1
-  myservo2.write(90);  // Stop motore 2
+  myservo1.write(90);
+  myservo2.write(90);
 }
 
-// Funzione che decodifica il valore in base alle soglie
-void decodeButton(int value, const int thresholds[], bool *level0, bool *level1, bool *level2, bool *level3, bool *level4) {
-  *level0 = false;
-  *level1 = false;
-  *level2 = false;
-  *level3 = false;
-  *level4 = false;
+bool initializeI2S() {
+  i2s_config_t i2s_config = {
+    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
+    .sample_rate = SAMPLE_RATE,
+    .bits_per_sample = BITS_PER_SAMPLE,
+    .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
+    .communication_format = I2S_COMM_FORMAT_STAND_I2S,
+    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+    .dma_buf_count = DMA_BUF_COUNT,
+    .dma_buf_len = DMA_BUF_LEN,
+    .use_apll = false,
+    .tx_desc_auto_clear = true,
+    .fixed_mclk = 0
+  };
 
-  if (value >= thresholds[0] && value < thresholds[1]) {
-    *level0 = true;
-  } else if (value >= thresholds[1] && value < thresholds[2]) {
-    *level1 = true;
-  } else if (value >= thresholds[2] && value < thresholds[3]) {
-    *level2 = true;
-  } else if (value >= thresholds[3] && value < thresholds[4]) {
-    *level3 = true;
-  } else if (value >= thresholds[4] && value <= thresholds[5]) {
-    *level4 = true;
+  i2s_pin_config_t pin_config = {
+    .bck_io_num = I2S_BCK_PIN,
+    .ws_io_num = I2S_WS_PIN,
+    .data_out_num = I2S_DATA_PIN,
+    .data_in_num = I2S_PIN_NO_CHANGE
+  };
+
+  if (i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL) != ESP_OK) return false;
+  if (i2s_set_pin(I2S_NUM, &pin_config) != ESP_OK) return false;
+  if (i2s_start(I2S_NUM) != ESP_OK) return false;
+
+  i2s_zero_dma_buffer(I2S_NUM);
+  i2s_initialized = true;
+  return true;
+}
+
+bool checkAudioFileExists(const char *filename) {
+  File file = LittleFS.open(filename, "r");
+  if (!file) {
+    Serial.printf("File %s non trovato\n", filename);
+    return false;
   }
+
+  size_t fileSize = file.size();
+  file.close();
+
+  Serial.printf("File %s trovato, dimensione: %zu bytes\n", filename, fileSize);
+  return fileSize > sizeof(WAVHeader);
 }
 
-// Funzione per suonare una nota
-void playNote(int frequency, int duration) {
-  if (frequency == REST) {
-    delay(duration);
+void processAudioChunk() {
+  if (!currentAudioFile || currentBytesRead >= currentTotalBytes) {
+    stopAudioPlayback();
+    return;
+  }
+
+  size_t bytesToRead = MIN((size_t)DMA_BUF_LEN * (currentHeader.bitsPerSample / 8),
+                           currentTotalBytes - currentBytesRead);
+
+  if (bytesToRead == 0) {
+    stopAudioPlayback();
+    return;
+  }
+
+  uint8_t *tempReadBuffer = (uint8_t *)audio_buffer;
+  size_t actualRead = currentAudioFile.read(tempReadBuffer, bytesToRead);
+
+  if (actualRead == 0) {
+    stopAudioPlayback();
+    return;
+  }
+
+  size_t actualSamplesRead = actualRead / (currentHeader.bitsPerSample / 8);
+
+  if (currentHeader.numChannels == 1) {
+    for (int i = actualSamplesRead - 1; i >= 0; i--) {
+      int16_t sample = ((int16_t *)tempReadBuffer)[i];
+      int16_t volumeAdjusted = (int16_t)(sample * VOLUME);
+
+      audio_buffer[i * 2] = volumeAdjusted;
+      audio_buffer[i * 2 + 1] = volumeAdjusted;
+    }
+    actualSamplesRead *= 2;
   } else {
-    tone(BUZZER_PIN, frequency, duration);
-    delay(duration * 1.1);  // Piccola pausa tra le note
+    for (int i = 0; i < actualSamplesRead; i++) {
+      int16_t sample = ((int16_t *)tempReadBuffer)[i];
+      audio_buffer[i] = (int16_t)(sample * VOLUME);
+    }
   }
+
+  size_t bytes_written;
+  size_t bytesToWrite = actualSamplesRead * sizeof(int16_t);
+  esp_err_t err = i2s_write(I2S_NUM, audio_buffer, bytesToWrite, &bytes_written, 0);
+
+  if (err == ESP_OK) {
+    currentBytesRead += actualRead;
+  } else {
+    Serial.printf("❌ Errore I2S write: %s\n", esp_err_to_name(err));
+    stopAudioPlayback();
+  }
+}
+
+void stopAudioPlayback() {
+  if (currentAudioFile) {
+    currentAudioFile.close();
+  }
+  isPlayingAudio = false;
+  Serial.println("✅ Riproduzione completata");
+}
+
+int analogReadLegacy(uint8_t gpio_num) {
+  adc1_channel_t channel;
+  adc_unit_t unit;
+
+  if (gpio_num == 34) {
+    unit = ADC_UNIT_1;
+    channel = ADC1_CHANNEL_6;
+  } else if (gpio_num == 35) {
+    unit = ADC_UNIT_1;
+    channel = ADC1_CHANNEL_7;
+  } else {
+    return -1;
+  }
+
+  if (adc1_config_width(ADC_WIDTH_BIT_12) != ESP_OK) {
+    return -1;
+  }
+
+  if (adc1_config_channel_atten(channel, ADC_ATTEN_DB_11) != ESP_OK) {
+    return -1;
+  }
+
+  int raw_value = adc1_get_raw(channel);
+  return raw_value;
 }
