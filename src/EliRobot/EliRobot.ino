@@ -1,7 +1,7 @@
 #include <ESP32Servo.h>
 #include <LittleFS.h>
 #include <driver/i2s.h>
-#include "driver/adc.h"  // Per le API ADC dell'ESP-IDF
+#include "driver/adc.h"
 #include <esp_task_wdt.h>
 
 // Macro helper per min/max con tipi diversi
@@ -65,8 +65,8 @@ bool isPlayingSequence = false;
 int playIndex = 0;
 unsigned long lastMoveTime = 0;
 bool lastBtnU = false, lastBtnR = false, lastBtnD = false, lastBtnL = false, lastBtnC = false;
-bool shouldPlayAudio = false;
 
+// ========== VARIABILI AUDIO SEMPLIFICATE ==========
 static int16_t audio_buffer[DMA_BUF_LEN * 2];
 static bool i2s_initialized = false;
 bool wavFilesExists = false;
@@ -107,10 +107,10 @@ void moveLeft();
 void moveRight();
 void stopMotors();
 bool initializeI2S();
-bool startWAVFile(const char *filename);
+bool playAudioFile(const char *filename);  // NUOVA FUNZIONE SEMPLIFICATA
 void processAudioChunk();
 void stopAudioPlayback();
-bool checkwavFilesExists();
+bool checkAudioFileExists(const char *filename);
 int analogReadLegacy(uint8_t gpio_num);
 
 void setup() {
@@ -139,24 +139,26 @@ void setup() {
     Serial.println("Errore I2S - Audio disabilitato");
   } else {
     // Verifica esistenza file
-    bool wavFilesExists = true;  // Inizializziamo a true e diventa false se un file non c'è
-
+    wavFilesExists = true;
     for (int i = 0; i < sizeof(audioFiles) / sizeof(audioFiles[0]); i++) {
-      const char *filename = audioFiles[i];
-      if (!checkwavFilesExists(filename)) {
-        Serial.printf("Errore: File '%s' non trovato!\n", filename);
-        wavFilesExists = false;  // Almeno un file non esiste
+      if (!checkAudioFileExists(audioFiles[i])) {
+        Serial.printf("Errore: File '%s' non trovato!\n", audioFiles[i]);
+        wavFilesExists = false;
       } else {
-        Serial.printf("File '%s' trovato e pronto per la riproduzione.\n", filename);
+        Serial.printf("File '%s' trovato e pronto.\n", audioFiles[i]);
       }
     }
   }
   Serial.println("Setup completato!");
+
+  if (wavFilesExists) {
+    delay(1000);
+    playAudioFile(ISTRUZIONI_AUDIO);
+  }
 }
 
 void loop() {
   // ========== GESTIONE ROBOT ==========
-  // Lettura analogica
   int analog0 = getStableAnalogRead(BUTTONS_PIN_0);
   int analog1 = getStableAnalogRead(BUTTONS_PIN_1);
 
@@ -187,6 +189,11 @@ void loop() {
     if (btnC && !lastBtnC) {
       if (sequenceIndex > 0) {
         Serial.println("Avvio riproduzione sequenza");
+        // ESEMPIO: Riproduci audio prima di iniziare la sequenza
+        if (wavFilesExists) {
+          delay(1000);
+          playAudioFile(START_SEQ_AUDIO);
+        }
         startPlayback();
       } else {
         Serial.println("Nessuna sequenza registrata!");
@@ -202,24 +209,62 @@ void loop() {
   lastBtnC = btnC;
 
   // ========== GESTIONE AUDIO ==========
-  if (i2s_initialized && wavFilesExists && shouldPlayAudio && !isPlayingAudio) {
-    // Avvia riproduzione del file
-    if (startWAVFile(START_SEQ_AUDIO)) {
-      isPlayingAudio = true;
-      shouldPlayAudio = false;  // Reset del flag
-      Serial.printf("Avviata riproduzione: %s\n", START_SEQ_AUDIO);
-    }
-  }
-
   if (isPlayingAudio) {
-    // Processa chunk audio corrente
     processAudioChunk();
   }
 
-  delay(50);  // Piccolo delay per non sovraccaricare
+  delay(50);
 }
 
-// ========== FUNZIONI ROBOT ==========
+// ========== FUNZIONE AUDIO SEMPLIFICATA ==========
+bool playAudioFile(const char *filename) {
+  // Se c'è già un audio in riproduzione, fermalo
+  if (isPlayingAudio) {
+    stopAudioPlayback();
+  }
+
+  // Verifica se l'audio è inizializzato e i file esistono
+  if (!i2s_initialized || !wavFilesExists) {
+    Serial.println("❌ Audio non disponibile");
+    return false;
+  }
+
+  // Apri il file
+  if (currentAudioFile) {
+    currentAudioFile.close();
+  }
+
+  currentAudioFile = LittleFS.open(filename, "r");
+  if (!currentAudioFile) {
+    Serial.printf("❌ Impossibile aprire file: %s\n", filename);
+    return false;
+  }
+
+  // Leggi header WAV
+  if (currentAudioFile.read((uint8_t *)&currentHeader, sizeof(WAVHeader)) != sizeof(WAVHeader)) {
+    Serial.println("❌ Errore lettura header WAV");
+    currentAudioFile.close();
+    return false;
+  }
+
+  // Verifica formato
+  if (memcmp(currentHeader.riff, "RIFF", 4) != 0 || memcmp(currentHeader.wave, "WAVE", 4) != 0 || currentHeader.audioFormat != 1) {
+    Serial.println("❌ Formato WAV non supportato (solo PCM)");
+    currentAudioFile.close();
+    return false;
+  }
+
+  // Posiziona all'inizio dei dati audio
+  currentAudioFile.seek(sizeof(WAVHeader));
+  currentTotalBytes = currentHeader.dataSize;
+  currentBytesRead = 0;
+  isPlayingAudio = true;
+
+  Serial.printf("🎵 Riproduzione: %s\n", filename);
+  return true;
+}
+
+// ========== RESTO DELLE FUNZIONI (invariate) ==========
 int getStableAnalogRead(int pin) {
   int sum = 0;
   for (int i = 0; i < 3; i++) {
@@ -258,12 +303,6 @@ void startPlayback() {
   isPlayingSequence = true;
   playIndex = 0;
   lastMoveTime = millis();
-
-  // Attiva la riproduzione audio
-  if (i2s_initialized && wavFilesExists) {
-    shouldPlayAudio = true;
-    Serial.println("Audio programmato per l'avvio");
-  }
 }
 
 void playSequence() {
@@ -286,6 +325,11 @@ void playSequence() {
       isPlayingSequence = false;
       stopMotors();
       resetSequence();
+      delay(1000);
+      if (wavFilesExists) {
+        delay(1000);
+        playAudioFile(ISTRUZIONI_AUDIO);
+      }
     }
   }
 }
@@ -315,7 +359,6 @@ void stopMotors() {
   myservo2.write(90);
 }
 
-// ========== FUNZIONI AUDIO ==========
 bool initializeI2S() {
   i2s_config_t i2s_config = {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
@@ -347,7 +390,7 @@ bool initializeI2S() {
   return true;
 }
 
-bool checkwavFilesExists(const char *filename) {
+bool checkAudioFileExists(const char *filename) {
   File file = LittleFS.open(filename, "r");
   if (!file) {
     Serial.printf("File %s non trovato\n", filename);
@@ -357,46 +400,8 @@ bool checkwavFilesExists(const char *filename) {
   size_t fileSize = file.size();
   file.close();
 
-  Serial.printf("File %s trovato, dimensione: %zu bytes\n", START_SEQ_AUDIO, fileSize);
-  return fileSize > sizeof(WAVHeader);  // Verifica che il file sia abbastanza grande per contenere almeno l'header
-}
-
-bool startWAVFile(const char *filename) {
-  if (currentAudioFile) {
-    currentAudioFile.close();
-  }
-
-  currentAudioFile = LittleFS.open(filename, "r");
-  if (!currentAudioFile) {
-    Serial.printf("❌ Impossibile aprire file: %s\n", filename);
-    return false;
-  }
-
-  // Leggi header WAV
-  if (currentAudioFile.read((uint8_t *)&currentHeader, sizeof(WAVHeader)) != sizeof(WAVHeader)) {
-    Serial.println("❌ Errore lettura header WAV");
-    currentAudioFile.close();
-    return false;
-  }
-
-  // Verifica formato
-  if (memcmp(currentHeader.riff, "RIFF", 4) != 0 || memcmp(currentHeader.wave, "WAVE", 4) != 0 || currentHeader.audioFormat != 1) {
-    Serial.println("❌ Formato WAV non supportato (solo PCM)");
-    currentAudioFile.close();
-    return false;
-  }
-
-  // Posiziona all'inizio dei dati audio
-  currentAudioFile.seek(sizeof(WAVHeader));
-
-  currentTotalBytes = currentHeader.dataSize;
-  currentBytesRead = 0;
-
-  Serial.printf("🎵 Iniziata riproduzione: %s\n", filename);
-  Serial.printf("📊 Sample Rate: %u Hz, Canali: %u, Bit depth: %u\n",
-                currentHeader.sampleRate, currentHeader.numChannels, currentHeader.bitsPerSample);
-
-  return true;
+  Serial.printf("File %s trovato, dimensione: %zu bytes\n", filename, fileSize);
+  return fileSize > sizeof(WAVHeader);
 }
 
 void processAudioChunk() {
@@ -405,7 +410,6 @@ void processAudioChunk() {
     return;
   }
 
-  // Calcola quanti byte leggere
   size_t bytesToRead = MIN((size_t)DMA_BUF_LEN * (currentHeader.bitsPerSample / 8),
                            currentTotalBytes - currentBytesRead);
 
@@ -414,7 +418,6 @@ void processAudioChunk() {
     return;
   }
 
-  // Leggi chunk
   uint8_t *tempReadBuffer = (uint8_t *)audio_buffer;
   size_t actualRead = currentAudioFile.read(tempReadBuffer, bytesToRead);
 
@@ -423,11 +426,9 @@ void processAudioChunk() {
     return;
   }
 
-  // Processa campioni
   size_t actualSamplesRead = actualRead / (currentHeader.bitsPerSample / 8);
 
   if (currentHeader.numChannels == 1) {
-    // Mono -> Stereo con volume
     for (int i = actualSamplesRead - 1; i >= 0; i--) {
       int16_t sample = ((int16_t *)tempReadBuffer)[i];
       int16_t volumeAdjusted = (int16_t)(sample * VOLUME);
@@ -437,26 +438,18 @@ void processAudioChunk() {
     }
     actualSamplesRead *= 2;
   } else {
-    // Stereo con volume
     for (int i = 0; i < actualSamplesRead; i++) {
       int16_t sample = ((int16_t *)tempReadBuffer)[i];
       audio_buffer[i] = (int16_t)(sample * VOLUME);
     }
   }
 
-  // Scrivi su I2S
   size_t bytes_written;
   size_t bytesToWrite = actualSamplesRead * sizeof(int16_t);
   esp_err_t err = i2s_write(I2S_NUM, audio_buffer, bytesToWrite, &bytes_written, 0);
 
   if (err == ESP_OK) {
     currentBytesRead += actualRead;
-
-    // Stampa progresso ogni 10KB
-    if (currentBytesRead % 10240 == 0) {
-      float progress = (float)currentBytesRead * 100.0 / currentTotalBytes;
-      Serial.printf("📊 Progresso: %.1f%%\n", progress);
-    }
   } else {
     Serial.printf("❌ Errore I2S write: %s\n", esp_err_to_name(err));
     stopAudioPlayback();
@@ -467,38 +460,32 @@ void stopAudioPlayback() {
   if (currentAudioFile) {
     currentAudioFile.close();
   }
-
   isPlayingAudio = false;
   Serial.println("✅ Riproduzione completata");
 }
 
 int analogReadLegacy(uint8_t gpio_num) {
-  // Cambiato il tipo di 'channel' a adc1_channel_t
   adc1_channel_t channel;
-  adc_unit_t unit;  // Manteniamo 'unit' per completezza, anche se qui usiamo solo ADC1
+  adc_unit_t unit;
 
   if (gpio_num == 34) {
     unit = ADC_UNIT_1;
-    channel = ADC1_CHANNEL_6;  // GPIO34
+    channel = ADC1_CHANNEL_6;
   } else if (gpio_num == 35) {
     unit = ADC_UNIT_1;
-    channel = ADC1_CHANNEL_7;  // GPIO35
+    channel = ADC1_CHANNEL_7;
   } else {
-    return -1;  // Pin non supportato
+    return -1;
   }
 
-  // Configura la larghezza in bit (risoluzione) per ADC1
   if (adc1_config_width(ADC_WIDTH_BIT_12) != ESP_OK) {
     return -1;
   }
 
-  // Configura l'attenuazione fissa a 11dB (range 0-3.9V circa) per il canale ADC1
   if (adc1_config_channel_atten(channel, ADC_ATTEN_DB_11) != ESP_OK) {
     return -1;
   }
 
-  // Effettua la lettura RAW dal canale ADC1
   int raw_value = adc1_get_raw(channel);
-
   return raw_value;
 }
