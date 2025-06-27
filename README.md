@@ -1,26 +1,29 @@
 ![Development Status](https://img.shields.io/badge/Status-In%20Development-yellow)
-![Version](https://img.shields.io/badge/Version-0.1.0--alpha-red)
+![Version](https://img.shields.io/badge/Version-0.2.0--alpha-red)
 ![Build](https://img.shields.io/badge/Build-Unstable-red)
 
 # elirobot
 
-**elirobot** è un robottino educativo progettato per bambini, basato su Arduino. Il bambino può impartire comandi direttamente utilizzando la tastiera integrata nella parte superiore del robot. I comandi includono movimenti di base e funzioni speciali pensate per stimolare la creatività e l’apprendimento del coding.
+**elirobot** è un robottino educativo progettato da e per bambini, basato su Arduino. Il bambino può impartire comandi direttamente utilizzando la tastiera integrata nella parte superiore del robot. I comandi includono movimenti di base e funzioni speciali pensate per stimolare la creatività e l’apprendimento del coding.
 
 ## Funzionalità principali
 
-- Movimento in avanti, indietro, rotazione a destra/sinistra
 - Esecuzione di sequenze di movimenti programmabili dal bambino
-- Funzioni speciali (ad esempio: luci, suoni, piccoli giochi logici)
+- Riproduzione di suoni pre-registrati
 - Interfaccia semplice e intuitiva tramite tastiera fisica
 - Progetto open source modulare ed espandibile
+
+## Funzionalità in sviluppo
+
+- Funzioni speciali (ad esempio: ballo, inseguimento luce, piccoli giochi logici, etc)
+- Estetica (occhi, luci varie)
 
 ## Prerequisiti
 
 - Scheda Arduino compatibile (nello specifico ho utilizzato un ESP32DevModule a 30pin, scheda basata su ESP32)
 - Componenti elettronici (motori servo a rotazione continua, pulsanti, batterie lipo, LED, buzzer, cavetti di collegamento, ecc.)
 - Stampante 3D per realizzazione tasti (ma puoi realizzarla anche in altri modi più semplici)
-- [Facoltativo] Sensori aggiuntivi per estensioni (come sensori di distanza o line follower)
-- IDE Arduino per la programmazione
+- IDE Arduino 2.x.x e pc per la programmazione
 
 ## Installazione
 
@@ -60,6 +63,7 @@ Per maggiori dettagli consulta il file [`LICENSE`](LICENSE) o visita [https://cr
 ## Autori
 
 - [dadone89](https://github.com/dadone89)
+[danielealberti.it](https://danielealberti.it)
 
 ---
 
