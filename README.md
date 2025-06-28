@@ -8,14 +8,17 @@
 
 ## Funzionalità principali
 
-- Esecuzione di sequenze di movimenti programmabili dal bambino
-- Riproduzione di suoni pre-registrati
 - Interfaccia semplice e intuitiva tramite tastiera fisica
+- Riproduzione di suoni pre-registrati per guidare le azioni
+- Modalità:
+   - Sequenza: esecuzione di sequenze di movimenti programmabili dal bambino
+   - Ballo: esegue dei movimenti ripetuti per imitare un ballo
+   - Telecomando: movimenti azionati direttamente dalle frecce direzionali
 - Progetto open source modulare ed espandibile
 
 ## Funzionalità in sviluppo
 
-- Funzioni speciali (ad esempio: ballo, inseguimento luce, piccoli giochi logici, etc)
+- Funzioni speciali (ad esempio: inseguimento luce, piccoli giochi logici, etc)
 - Estetica (occhi, luci varie)
 
 ## Prerequisiti
