@@ -10,8 +10,8 @@
 
 // File audio
 #define PRESENTAZIONE_AUDIO "/elirobot.wav"
-#define ISTRUZIONI_AUDIO "/Frecce_e_centrale.wav"
-#define START_SEQ_AUDIO "/Adesso_si_balla.wav"
+#define MOD_SEQ_AUDIO "/Frecce_e_centrale.wav"
+#define MOD_DANCE_AUDIO "/Adesso_si_balla.wav"
 
 // Pin analogici per ESP32 30-pin
 #define BUTTONS_PIN_0 34
@@ -40,23 +40,33 @@
 #define BITS_PER_SAMPLE I2S_BITS_PER_SAMPLE_16BIT
 #define DMA_BUF_COUNT 4
 #define DMA_BUF_LEN 512
-#define VOLUME 0.6f
+#define VOLUME 0.5f
 
 const char *audioFiles[] = {
   PRESENTAZIONE_AUDIO,
-  ISTRUZIONI_AUDIO,
-  START_SEQ_AUDIO
+  MOD_SEQ_AUDIO,
+  MOD_DANCE_AUDIO
 };
 
 // Soglie per ESP32 (12-bit ADC: 0-4095)
 int thresholdsA0[] = { 0, 1200, 2200, 2800, 3050, 3600 };
 int thresholdsA1[] = { 0, 1600, 2400, 2880, 3600, 4000 };
 
+// ========== INDICI PULSANTI ==========
+#define BTN_NONE -1
+#define BTN_C 0   // Centrale (A0)
+#define BTN_DL 1  // Down-Left (A0)
+#define BTN_UL 2  // Up-Left (A0)
+#define BTN_UR 3  // Up-Right (A0)
+#define BTN_DR 4  // Down-Right (A0)
+#define BTN_L 0   // Left (A1)
+#define BTN_U 1   // Up (A1)
+#define BTN_R 2   // Right (A1)
+#define BTN_D 3   // Down (A1)
+
 // ========== CONFIGURAZIONE ROBOT ==========
 Servo myservo1;
 Servo myservo2;
-bool btnU, btnR, btnD, btnL, btnC = false;
-bool btnUR, btnDR, btnDL, btnUL, btnDummy = false;
 
 // Variabili per sequenza movimenti
 char moveSequence[10];
@@ -64,7 +74,19 @@ int sequenceIndex = 0;
 bool isPlayingSequence = false;
 int playIndex = 0;
 unsigned long lastMoveTime = 0;
-bool lastBtnU = false, lastBtnR = false, lastBtnD = false, lastBtnL = false, lastBtnC = false;
+
+// Variabili per gestire stati precedenti dei pulsanti
+int lastButtonA0 = BTN_NONE;
+int lastButtonA1 = BTN_NONE;
+
+// Modalità di funzionamento
+#define MODE_STANDBY 0
+#define MODE_SEQUENCE 1
+#define MODE_REMOTE 2
+#define MODE_DANCE 3
+#define MODE_FOLLOW 4
+
+int currentMode = MODE_STANDBY;
 
 // ========== VARIABILI AUDIO SEMPLIFICATE ==========
 static int16_t audio_buffer[DMA_BUF_LEN * 2];
@@ -95,19 +117,23 @@ struct WAVHeader {
 WAVHeader currentHeader;
 
 // ========== DICHIARAZIONI FUNZIONI ==========
-void decodeButton(int value, const int thresholds[], bool *level0, bool *level1, bool *level2, bool *level3, bool *level4);
+int decodeButton(int value, const int thresholds[]);
 int getStableAnalogRead(int pin);
 void addToSequence(char move);
 void resetSequence();
 void startPlayback();
 void playSequence();
+void handleSequenceMode(int currentButtonA0, int currentButtonA1, int lastButtonA0, int lastButtonA1);
+void handleRemoteMode(int currentButtonA1, int lastButtonA1);
+void handleDanceMode();
+void handleFollowMode();
 void moveForward();
 void moveBackward();
 void moveLeft();
 void moveRight();
 void stopMotors();
 bool initializeI2S();
-bool playAudioFile(const char *filename);  // NUOVA FUNZIONE SEMPLIFICATA
+bool playAudioFile(const char *filename);
 void processAudioChunk();
 void stopAudioPlayback();
 bool checkAudioFileExists(const char *filename);
@@ -162,51 +188,108 @@ void loop() {
   int analog0 = getStableAnalogRead(BUTTONS_PIN_0);
   int analog1 = getStableAnalogRead(BUTTONS_PIN_1);
 
-  decodeButton(analog0, thresholdsA0, &btnC, &btnDL, &btnUL, &btnUR, &btnDR);
-  decodeButton(analog1, thresholdsA1, &btnL, &btnU, &btnR, &btnD, &btnDummy);
+  int currentButtonA0 = decodeButton(analog0, thresholdsA0);
+  int currentButtonA1 = decodeButton(analog1, thresholdsA1);
 
-  // Gestione sequenza
-  if (isPlayingSequence) {
-    playSequence();
-  } else {
-    // Registrazione movimenti
-    if (btnU && !lastBtnU) {
-      addToSequence('U');
-      Serial.println("UP aggiunto");
-    }
-    if (btnD && !lastBtnD) {
-      addToSequence('D');
-      Serial.println("DOWN aggiunto");
-    }
-    if (btnL && !lastBtnL) {
-      addToSequence('L');
-      Serial.println("LEFT aggiunto");
-    }
-    if (btnR && !lastBtnR) {
-      addToSequence('R');
-      Serial.println("RIGHT aggiunto");
-    }
-    if (btnC && !lastBtnC) {
-      if (sequenceIndex > 0) {
-        Serial.println("Avvio riproduzione sequenza");
-        // ESEMPIO: Riproduci audio prima di iniziare la sequenza
-        if (wavFilesExists) {
-          delay(1000);
-          playAudioFile(START_SEQ_AUDIO);
+  bool resetMode = false;
+
+  // Gestione cambio modalità (solo con i 4 tasti direzionali di A0, non BTN_C)
+  if (currentButtonA0 != BTN_NONE && lastButtonA0 != currentButtonA0 && currentButtonA0 != BTN_C) {
+    switch (currentButtonA0) {
+      case BTN_UR:
+        if (currentMode != MODE_SEQUENCE) {
+          currentMode = MODE_SEQUENCE;
+          resetSequence();
+          isPlayingSequence = false;
+          stopMotors();
+          Serial.println("=== MODALITÀ SEQUENZA ATTIVATA ===");
+          if (wavFilesExists) {
+            delay(500);
+            playAudioFile(MOD_SEQ_AUDIO);
+          }
+        } else {
+          resetMode = true;
         }
-        startPlayback();
-      } else {
-        Serial.println("Nessuna sequenza registrata!");
+        break;
+
+      case BTN_UL:
+        if (currentMode != MODE_REMOTE) {
+          currentMode = MODE_REMOTE;
+          isPlayingSequence = false;
+          stopMotors();
+          Serial.println("=== MODALITÀ TELECOMANDO ATTIVATA ===");
+        } else {
+          resetMode = true;
+        }
+        break;
+
+      case BTN_DL:
+        if (currentMode != MODE_DANCE) {
+          currentMode = MODE_DANCE;
+          isPlayingSequence = false;
+          stopMotors();
+          Serial.println("=== MODALITÀ DANZA ATTIVATA ===");
+          // Riproduci audio di avvio danza immediatamente quando si attiva la modalità
+          if (wavFilesExists) {
+            delay(500);
+            playAudioFile(MOD_DANCE_AUDIO);
+          }
+        } else {
+          resetMode = true;
+        }
+        break;
+
+      case BTN_DR:
+        if (currentMode != MODE_FOLLOW) {
+          currentMode = MODE_FOLLOW;
+          isPlayingSequence = false;
+          stopMotors();
+          Serial.println("=== MODALITÀ INSEGUIMENTO ATTIVATA ===");
+        } else {
+          resetMode = true;
+        }
+        break;
+    }
+
+    // se è stato premuto di nuovo il tasto della funzione precedente, esci
+    if (resetMode) {
+      currentMode = MODE_STANDBY;
+      isPlayingSequence = false;
+      stopMotors();
+      if (wavFilesExists) {
+        delay(500);
+        playAudioFile(PRESENTAZIONE_AUDIO);
       }
     }
   }
 
+  // Gestione delle diverse modalità
+  switch (currentMode) {
+    case MODE_SEQUENCE:
+      handleSequenceMode(currentButtonA0, currentButtonA1, lastButtonA0, lastButtonA1);
+      break;
+
+    case MODE_REMOTE:
+      handleRemoteMode(currentButtonA1, lastButtonA1);
+      break;
+
+    case MODE_DANCE:
+      handleDanceMode();
+      break;
+
+    case MODE_FOLLOW:
+      handleFollowMode();
+      break;
+
+    case MODE_STANDBY:
+    default:
+      // In standby, il robot non fa nulla
+      break;
+  }
+
   // Salva stato precedente
-  lastBtnU = btnU;
-  lastBtnR = btnR;
-  lastBtnD = btnD;
-  lastBtnL = btnL;
-  lastBtnC = btnC;
+  lastButtonA0 = currentButtonA0;
+  lastButtonA1 = currentButtonA1;
 
   // ========== GESTIONE AUDIO ==========
   if (isPlayingAudio) {
@@ -214,6 +297,16 @@ void loop() {
   }
 
   delay(50);
+}
+
+// ========== FUNZIONE DECODIFICA PULSANTI MODIFICATA ==========
+int decodeButton(int value, const int thresholds[]) {
+  if (value >= thresholds[0] && value < thresholds[1]) return 0;
+  else if (value >= thresholds[1] && value < thresholds[2]) return 1;
+  else if (value >= thresholds[2] && value < thresholds[3]) return 2;
+  else if (value >= thresholds[3] && value < thresholds[4]) return 3;
+  else if (value >= thresholds[4] && value <= thresholds[5]) return 4;
+  else return BTN_NONE;
 }
 
 // ========== FUNZIONE AUDIO SEMPLIFICATA ==========
@@ -264,7 +357,145 @@ bool playAudioFile(const char *filename) {
   return true;
 }
 
-// ========== RESTO DELLE FUNZIONI (invariate) ==========
+// ========== GESTORI MODALITÀ ==========
+void handleSequenceMode(int currentButtonA0, int currentButtonA1, int lastButtonA0, int lastButtonA1) {
+  if (isPlayingSequence) {
+    playSequence();
+  } else {
+    // Registrazione movimenti con i tasti direzionali di A1
+    if (currentButtonA1 == BTN_U && lastButtonA1 != BTN_U) {
+      addToSequence('U');
+      Serial.println("UP aggiunto alla sequenza");
+    }
+    if (currentButtonA1 == BTN_D && lastButtonA1 != BTN_D) {
+      addToSequence('D');
+      Serial.println("DOWN aggiunto alla sequenza");
+    }
+    if (currentButtonA1 == BTN_L && lastButtonA1 != BTN_L) {
+      addToSequence('L');
+      Serial.println("LEFT aggiunto alla sequenza");
+    }
+    if (currentButtonA1 == BTN_R && lastButtonA1 != BTN_R) {
+      addToSequence('R');
+      Serial.println("RIGHT aggiunto alla sequenza");
+    }
+
+    // BTN_C serve per eseguire la sequenza registrata
+    if (currentButtonA0 == BTN_C && lastButtonA0 != BTN_C) {
+      if (sequenceIndex > 0) {
+        Serial.println("Avvio riproduzione sequenza");
+        startPlayback();
+      } else {
+        Serial.println("Nessuna sequenza registrata!");
+      }
+    }
+  }
+}
+
+void handleRemoteMode(int currentButtonA1, int lastButtonA1) {
+  // Modalità telecomando: controllo diretto del robot
+  static unsigned long lastRemoteCommand = 0;
+  unsigned long currentTime = millis();
+
+  if (currentButtonA1 != BTN_NONE) {
+    switch (currentButtonA1) {
+      case BTN_U:
+        moveBackward();
+        Serial.println("Telecomando: Indietro");
+        break;
+      case BTN_D:
+        moveForward();
+        Serial.println("Telecomando: Avanti");
+        break;
+      case BTN_L:
+        moveLeft();
+        Serial.println("Telecomando: Sinistra");
+        break;
+      case BTN_R:
+        moveRight();
+        Serial.println("Telecomando: Destra");
+        break;
+    }
+    lastRemoteCommand = currentTime;
+  } else {
+    // Se non c'è comando da più di 100ms, ferma i motori
+    if (currentTime - lastRemoteCommand > 100) {
+      stopMotors();
+    }
+  }
+}
+
+void handleDanceMode() {
+  static unsigned long lastDanceMove = 0;
+  static int danceStep = 0;
+  static bool danceInitialized = false;
+  unsigned long currentTime = millis();
+
+  // Inizializza la danza solo una volta per sessione di modalità
+  if (!danceInitialized) {
+    danceInitialized = true;
+    danceStep = 0;
+    lastDanceMove = currentTime;
+    Serial.println("Inizializzazione modalità danza completata");
+    return;  // Esci per dare tempo all'audio di partire
+  }
+
+  // Cambia movimento ogni 800ms
+  if (currentTime - lastDanceMove > 800) {
+    switch (danceStep % 9) {
+      case 0:
+        moveRight();
+        Serial.println("Danza: Destra");
+        break;
+      case 1:
+        moveRight();
+        Serial.println("Danza: Destra");
+        break;
+      case 2:
+        moveForward();
+        Serial.println("Danza: Avanti");
+        break;
+      case 3:
+        moveBackward();
+        Serial.println("Danza: Indietro");
+        break;
+      case 4:
+        moveRight();
+        Serial.println("Danza: Destra");
+        break;
+      case 5:
+        moveLeft();
+        Serial.println("Danza: Sinistra");
+        break;
+      case 6:
+        moveLeft();
+        Serial.println("Danza: Sinistra");
+        break;
+      case 7:
+        moveLeft();
+        Serial.println("Danza: Sinistra");
+        break;
+      case 8:
+        stopMotors();
+        Serial.println("Danza: Pausa");
+        break;
+    }
+    danceStep++;
+    lastDanceMove = currentTime;
+  }
+
+  // Reset dell'inizializzazione quando si esce dalla modalità danza
+  // (questo sarà gestito automaticamente quando si cambia modalità)
+  if (currentMode != MODE_DANCE) {
+    danceInitialized = false;
+  }
+}
+
+void handleFollowMode() {
+  // da completare
+}
+
+// ========== RESTO DELLE FUNZIONI  ==========
 int getStableAnalogRead(int pin) {
   int sum = 0;
   for (int i = 0; i < 3; i++) {
@@ -272,16 +503,6 @@ int getStableAnalogRead(int pin) {
     delayMicroseconds(100);
   }
   return sum / 3;
-}
-
-void decodeButton(int value, const int thresholds[], bool *level0, bool *level1, bool *level2, bool *level3, bool *level4) {
-  *level0 = *level1 = *level2 = *level3 = *level4 = false;
-
-  if (value >= thresholds[0] && value < thresholds[1]) *level0 = true;
-  else if (value >= thresholds[1] && value < thresholds[2]) *level1 = true;
-  else if (value >= thresholds[2] && value < thresholds[3]) *level2 = true;
-  else if (value >= thresholds[3] && value < thresholds[4]) *level3 = true;
-  else if (value >= thresholds[4] && value <= thresholds[5]) *level4 = true;
 }
 
 void addToSequence(char move) {
@@ -328,7 +549,7 @@ void playSequence() {
       delay(1000);
       if (wavFilesExists) {
         delay(1000);
-        playAudioFile(ISTRUZIONI_AUDIO);
+        playAudioFile(MOD_SEQ_AUDIO);
       }
     }
   }
