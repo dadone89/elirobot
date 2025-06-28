@@ -153,7 +153,7 @@ void setup() {
 
   if (wavFilesExists) {
     delay(1000);
-    playAudioFile(ISTRUZIONI_AUDIO);
+    playAudioFile(PRESENTAZIONE_AUDIO);
   }
 }
 
