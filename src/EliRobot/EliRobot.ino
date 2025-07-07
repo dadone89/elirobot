@@ -40,8 +40,10 @@
 #define MOD_DIRECT_AUDIO "/Telecomando!.wav"
 #define MOD_FOLLOW_AUDIO "/Inseguo la luce.wav"
 
-// Durata movimento in ms
+// Durata movimento in ms in modalità sequence
 #define MOVE_DURATION 2000
+// Adc corrispondente a massima velocità in modalità follow
+#define ADC_FOR_MAX_SPEED 500
 
 // Modalità di funzionamento
 #define MODE_STANDBY 0
@@ -96,9 +98,10 @@ unsigned long lastMoveTime = 0;
 int lastButtonA0 = BTN_NONE;
 int lastButtonA1 = BTN_NONE;
 
+static bool firstEntryFollowMode = true;  // Indica se è la prima volta che si entra nella modalità Follow
 int currentMode = MODE_STANDBY;
 
-// Variavili per audio I2S
+// Variabili per audio I2S
 static int16_t audio_buffer[DMA_BUF_LEN * 2];
 static bool i2s_initialized = false;
 bool wavFilesExists = false;
@@ -258,6 +261,7 @@ void loop() {
           currentMode = MODE_FOLLOW;
           isPlayingSequence = false;
           stopMotors();
+          firstEntryFollowMode = true;
           Serial.println("=== MODALITÀ INSEGUIMENTO ATTIVATA ===");
           if (wavFilesExists) {
             delay(500);
@@ -510,12 +514,43 @@ void handleDanceMode() {
 }
 
 void handleFollowMode() {
-  // leggi analogica
-  int analog0 = getStableAnalogRead(PHOTORES_PIN_0);
-  int analog1 = getStableAnalogRead(PHOTORES_PIN_1);
-  Serial.printf("PHOTORES_PIN_0: %d\n", analog0);
-  Serial.printf("PHOTORES_PIN_1: %d\n", analog1);
-  // da completare
+  // Variabili statiche per memorizzare i valori iniziali delle fotoresistenze
+  static int initialPhotores0 = -1;
+  static int initialPhotores1 = -1;
+
+  // Se è la prima volta che si entra in questa modalità, scatta un'istantanea
+  if (firstEntryFollowMode) {
+    initialPhotores0 = getStableAnalogRead(PHOTORES_PIN_0);
+    initialPhotores1 = getStableAnalogRead(PHOTORES_PIN_1);
+    Serial.printf("Modalità Inseguimento: Snapshot iniziale - Photores0: %d, Photores1: %d\n", initialPhotores0, initialPhotores1);
+    firstEntryFollowMode = false;  // Resetta il flag dopo aver scattato l'istantanea
+  }
+
+  // Leggi i valori attuali delle fotoresistenze
+  int currentPhotores0 = getStableAnalogRead(PHOTORES_PIN_0);
+  int currentPhotores1 = getStableAnalogRead(PHOTORES_PIN_1);
+
+  Serial.printf("PHOTORES_PIN_0 (attuale): %d, PHOTORES_PIN_1 (attuale): %d\n", currentPhotores0, currentPhotores1);
+
+  // Mappa il valore della fotoresistenza alla velocità del motore.
+  // Assumiamo che 0 sia la massima luce (e quindi massima velocità in avanti)
+  // e initialPhotoresX sia il punto di "stop" (o velocità minima).
+  // Per myservo1 (motore sinistro): max luce -> 180 (avanti max), initialPhotores0 -> 90 (stop)
+  // Per myservo2 (motore destro): max luce -> 0 (avanti max), initialPhotores1 -> 90 (stop)
+
+  int speed0 = map(currentPhotores0, ADC_FOR_MAX_SPEED, initialPhotores0, 180, 90);
+  // Limita la velocità per myservo1 tra 90 (stop) e 180 (avanti max)
+  speed0 = constrain(speed0, 90, 180);
+
+  int speed1 = map(currentPhotores1, ADC_FOR_MAX_SPEED, initialPhotores1, 0, 90);
+  // Limita la velocità per myservo2 tra 0 (avanti max) e 90 (stop)
+  speed1 = constrain(speed1, 0, 90);
+
+  // Applica le velocità ai motori
+  myservo1.write(speed0);
+  myservo2.write(speed1);
+
+  Serial.printf("Velocità Motore 1: %d, Velocità Motore 2: %d\n", speed0, speed1);
 }
 
 // ========== RESTO DELLE FUNZIONI  ==========
