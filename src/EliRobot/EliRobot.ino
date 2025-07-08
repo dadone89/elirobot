@@ -8,20 +8,49 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-// File audio
-#define PRESENTAZIONE_AUDIO "/elirobot.wav"
-#define MOD_SEQ_AUDIO "/Frecce_e_centrale.wav"
-#define MOD_DANCE_AUDIO "/Adesso_si_balla.wav"
-
-// Pin analogici per ESP32 30-pin
-#define BUTTONS_PIN_0 34
-#define BUTTONS_PIN_1 35
+// Pin audio I2S
+#define I2S_BCK_PIN 26
+#define I2S_WS_PIN 25
+#define I2S_DATA_PIN 22
 
 // Pin PWM per i servo
 #define SERVO_PIN_1 32
 #define SERVO_PIN_2 33
 
-#define MOVE_DURATION 2000  // Durata movimento in ms
+// Pin analogici per pulsanti
+#define BUTTONS_PIN_0 34
+#define BUTTONS_PIN_1 35
+
+// Pin analogici per fotoresistenze
+#define PHOTORES_PIN_0 36
+#define PHOTORES_PIN_1 39
+
+// Configurazione I2S
+#define I2S_NUM I2S_NUM_0
+#define SAMPLE_RATE 8000
+#define BITS_PER_SAMPLE I2S_BITS_PER_SAMPLE_16BIT
+#define DMA_BUF_COUNT 4
+#define DMA_BUF_LEN 512
+#define VOLUME 0.5f
+
+// File audio
+#define PRESENTATION_AUDIO "/elirobot.wav"
+#define MOD_SEQ_AUDIO "/Frecce_e_centrale.wav"
+#define MOD_DANCE_AUDIO "/Adesso_si_balla.wav"
+#define MOD_DIRECT_AUDIO "/Telecomando!.wav"
+#define MOD_FOLLOW_AUDIO "/Inseguo la luce.wav"
+
+// Durata movimento in ms in modalità sequence
+#define MOVE_DURATION 2000
+// Adc corrispondente a massima velocità in modalità follow
+#define ADC_FOR_MAX_SPEED 500
+
+// Modalità di funzionamento
+#define MODE_STANDBY 0
+#define MODE_SEQUENCE 1
+#define MODE_DIRECT 2
+#define MODE_DANCE 3
+#define MODE_FOLLOW 4
 
 // Note musicali
 #define NOTE_C4 262
@@ -30,29 +59,7 @@
 #define NOTE_F4 349
 #define NOTE_G4 392
 
-// ========== CONFIGURAZIONE AUDIO ==========
-#define I2S_BCK_PIN 26
-#define I2S_WS_PIN 25
-#define I2S_DATA_PIN 22
-#define I2S_NUM I2S_NUM_0
-
-#define SAMPLE_RATE 8000
-#define BITS_PER_SAMPLE I2S_BITS_PER_SAMPLE_16BIT
-#define DMA_BUF_COUNT 4
-#define DMA_BUF_LEN 512
-#define VOLUME 0.5f
-
-const char *audioFiles[] = {
-  PRESENTAZIONE_AUDIO,
-  MOD_SEQ_AUDIO,
-  MOD_DANCE_AUDIO
-};
-
-// Soglie per ESP32 (12-bit ADC: 0-4095)
-int thresholdsA0[] = { 0, 1200, 2200, 2800, 3050, 3600 };
-int thresholdsA1[] = { 0, 1600, 2400, 2880, 3600, 4000 };
-
-// ========== INDICI PULSANTI ==========
+// Indici pulsanti
 #define BTN_NONE -1
 #define BTN_C 0   // Centrale (A0)
 #define BTN_DL 1  // Down-Left (A0)
@@ -64,7 +71,19 @@ int thresholdsA1[] = { 0, 1600, 2400, 2880, 3600, 4000 };
 #define BTN_R 2   // Right (A1)
 #define BTN_D 3   // Down (A1)
 
-// ========== CONFIGURAZIONE ROBOT ==========
+// Soglie per ESP32 (12-bit ADC: 0-4095)
+int thresholdsA0[] = { 0, 1200, 2200, 2800, 3050, 3600 };
+int thresholdsA1[] = { 0, 1600, 2400, 2880, 3600, 4000 };
+
+const char *audioFiles[] = {
+  PRESENTATION_AUDIO,
+  MOD_SEQ_AUDIO,
+  MOD_DANCE_AUDIO,
+  MOD_DIRECT_AUDIO,
+  MOD_FOLLOW_AUDIO
+};
+
+// Instanze servo
 Servo myservo1;
 Servo myservo2;
 
@@ -79,16 +98,10 @@ unsigned long lastMoveTime = 0;
 int lastButtonA0 = BTN_NONE;
 int lastButtonA1 = BTN_NONE;
 
-// Modalità di funzionamento
-#define MODE_STANDBY 0
-#define MODE_SEQUENCE 1
-#define MODE_REMOTE 2
-#define MODE_DANCE 3
-#define MODE_FOLLOW 4
-
+static bool firstEntryFollowMode = true;  // Indica se è la prima volta che si entra nella modalità Follow
 int currentMode = MODE_STANDBY;
 
-// ========== VARIABILI AUDIO SEMPLIFICATE ==========
+// Variabili per audio I2S
 static int16_t audio_buffer[DMA_BUF_LEN * 2];
 static bool i2s_initialized = false;
 bool wavFilesExists = false;
@@ -116,7 +129,7 @@ struct WAVHeader {
 
 WAVHeader currentHeader;
 
-// ========== DICHIARAZIONI FUNZIONI ==========
+// Dichiarazione funzioni
 int decodeButton(int value, const int thresholds[]);
 int getStableAnalogRead(int pin);
 void addToSequence(char move);
@@ -179,12 +192,12 @@ void setup() {
 
   if (wavFilesExists) {
     delay(1000);
-    playAudioFile(PRESENTAZIONE_AUDIO);
+    playAudioFile(PRESENTATION_AUDIO);
   }
 }
 
 void loop() {
-  // ========== GESTIONE ROBOT ==========
+  // leggi analogica per pulsanti
   int analog0 = getStableAnalogRead(BUTTONS_PIN_0);
   int analog1 = getStableAnalogRead(BUTTONS_PIN_1);
 
@@ -213,11 +226,15 @@ void loop() {
         break;
 
       case BTN_UL:
-        if (currentMode != MODE_REMOTE) {
-          currentMode = MODE_REMOTE;
+        if (currentMode != MODE_DIRECT) {
+          currentMode = MODE_DIRECT;
           isPlayingSequence = false;
           stopMotors();
           Serial.println("=== MODALITÀ TELECOMANDO ATTIVATA ===");
+          if (wavFilesExists) {
+            delay(500);
+            playAudioFile(MOD_DIRECT_AUDIO);
+          }
         } else {
           resetMode = true;
         }
@@ -244,7 +261,12 @@ void loop() {
           currentMode = MODE_FOLLOW;
           isPlayingSequence = false;
           stopMotors();
+          firstEntryFollowMode = true;
           Serial.println("=== MODALITÀ INSEGUIMENTO ATTIVATA ===");
+          if (wavFilesExists) {
+            delay(500);
+            playAudioFile(MOD_FOLLOW_AUDIO);
+          }
         } else {
           resetMode = true;
         }
@@ -258,7 +280,7 @@ void loop() {
       stopMotors();
       if (wavFilesExists) {
         delay(500);
-        playAudioFile(PRESENTAZIONE_AUDIO);
+        playAudioFile(PRESENTATION_AUDIO);
       }
     }
   }
@@ -269,7 +291,7 @@ void loop() {
       handleSequenceMode(currentButtonA0, currentButtonA1, lastButtonA0, lastButtonA1);
       break;
 
-    case MODE_REMOTE:
+    case MODE_DIRECT:
       handleRemoteMode(currentButtonA1, lastButtonA1);
       break;
 
@@ -492,7 +514,43 @@ void handleDanceMode() {
 }
 
 void handleFollowMode() {
-  // da completare
+  // Variabili statiche per memorizzare i valori iniziali delle fotoresistenze
+  static int initialPhotores0 = -1;
+  static int initialPhotores1 = -1;
+
+  // Se è la prima volta che si entra in questa modalità, scatta un'istantanea
+  if (firstEntryFollowMode) {
+    initialPhotores0 = getStableAnalogRead(PHOTORES_PIN_0);
+    initialPhotores1 = getStableAnalogRead(PHOTORES_PIN_1);
+    Serial.printf("Modalità Inseguimento: Snapshot iniziale - Photores0: %d, Photores1: %d\n", initialPhotores0, initialPhotores1);
+    firstEntryFollowMode = false;  // Resetta il flag dopo aver scattato l'istantanea
+  }
+
+  // Leggi i valori attuali delle fotoresistenze
+  int currentPhotores0 = getStableAnalogRead(PHOTORES_PIN_0);
+  int currentPhotores1 = getStableAnalogRead(PHOTORES_PIN_1);
+
+  Serial.printf("PHOTORES_PIN_0 (attuale): %d, PHOTORES_PIN_1 (attuale): %d\n", currentPhotores0, currentPhotores1);
+
+  // Mappa il valore della fotoresistenza alla velocità del motore.
+  // Assumiamo che 0 sia la massima luce (e quindi massima velocità in avanti)
+  // e initialPhotoresX sia il punto di "stop" (o velocità minima).
+  // Per myservo1 (motore sinistro): max luce -> 180 (avanti max), initialPhotores0 -> 90 (stop)
+  // Per myservo2 (motore destro): max luce -> 0 (avanti max), initialPhotores1 -> 90 (stop)
+
+  int speed0 = map(currentPhotores0, ADC_FOR_MAX_SPEED, initialPhotores0, 180, 90);
+  // Limita la velocità per myservo1 tra 90 (stop) e 180 (avanti max)
+  speed0 = constrain(speed0, 90, 180);
+
+  int speed1 = map(currentPhotores1, ADC_FOR_MAX_SPEED, initialPhotores1, 0, 90);
+  // Limita la velocità per myservo2 tra 0 (avanti max) e 90 (stop)
+  speed1 = constrain(speed1, 0, 90);
+
+  // Applica le velocità ai motori
+  myservo1.write(speed0);
+  myservo2.write(speed1);
+
+  Serial.printf("Velocità Motore 1: %d, Velocità Motore 2: %d\n", speed0, speed1);
 }
 
 // ========== RESTO DELLE FUNZIONI  ==========
@@ -695,6 +753,12 @@ int analogReadLegacy(uint8_t gpio_num) {
   } else if (gpio_num == 35) {
     unit = ADC_UNIT_1;
     channel = ADC1_CHANNEL_7;
+  } else if (gpio_num == 36) {
+    unit = ADC_UNIT_1;
+    channel = ADC1_CHANNEL_0;
+  } else if (gpio_num == 39) {
+    unit = ADC_UNIT_1;
+    channel = ADC1_CHANNEL_3;
   } else {
     return -1;
   }
