@@ -14,11 +14,12 @@
    - Sequenza: esecuzione di sequenze di movimenti programmabili dal bambino
    - Ballo: esegue dei movimenti ripetuti per imitare un ballo
    - Telecomando: movimenti azionati direttamente dalle frecce direzionali
+   - Inseguimento luce: grazie a 2 foto resistenze poste sulla parte anteriore, inseguirà la luce ad esempio di una torcia
 - Progetto open source modulare ed espandibile
 
 ## Funzionalità in sviluppo
 
-- Funzioni speciali (ad esempio: inseguimento luce, piccoli giochi logici, etc)
+- Altre funzioni speciali (ad esempio: piccoli giochi logici, etc)
 - Estetica (occhi, luci varie)
 
 ## Prerequisiti
