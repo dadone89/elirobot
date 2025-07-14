@@ -1,60 +1,60 @@
 // main.ino
-// File principale del programma ESP32 Robot Controller.
-// Contiene le funzioni setup() e loop() e gestisce il flusso generale.
+// Main file for the ESP32 Robot Controller program.
+// Contains the setup() and loop() functions and manages the general flow.
 
-#include <ESP32Servo.h> // Libreria per il controllo dei servo
-#include <LittleFS.h>   // Libreria per la gestione del filesystem LittleFS
-#include "config.h"     // Include le definizioni delle costanti e dei pin
-#include "hardware_io.h" // Include le funzioni di controllo dei servi e gestione pulsanti
-#include "audio.h"      // Include le funzioni di riproduzione audio e toni
-#include "robot_modes.h" // Include le funzioni per la gestione delle modalità
+#include <ESP32Servo.h>   // Library for servo control
+#include <LittleFS.h>     // Library for LittleFS filesystem management
+#include "config.h"       // Includes constant and pin definitions
+#include "hardware_io.h"  // Includes servo control and button management functions
+#include "audio.h"        // Includes audio playback and tone functions
+#include "robot_modes.h"  // Includes functions for mode management
 
-// Instanze servo (definite qui e dichiarate 'extern' in hardware_io.h)
+// Servo instances (defined here and declared 'extern' in hardware_io.h)
 Servo myservo1;
 Servo myservo2;
 
-// Variabili per gestire stati precedenti dei pulsanti (gestite nel loop principale)
+// Variables to manage previous button states (managed in the main loop)
 int lastButtonA0 = BTN_NONE;
 int lastButtonA1 = BTN_NONE;
 
 void setup() {
-  Serial.begin(115200); // Inizializza la comunicazione seriale
-  delay(1000); // Breve pausa per stabilizzare
+  Serial.begin(115200);  // Initialize serial communication
+  delay(1000);           // Short pause to stabilize
 
   Serial.println("=== ESP32 Robot Controller + Audio Player ===");
 
-  // Configurazione e attacco dei servi ai pin
+  // Configure and attach servos to pins
   myservo1.attach(SERVO_PIN_1);
   myservo2.attach(SERVO_PIN_2);
 
-  // Ferma i motori all'avvio
+  // Stop motors on startup
   stopMotors();
 
-  // Inizializza il filesystem LittleFS
+  // Initialize the LittleFS filesystem
   if (!LittleFS.begin(false)) {
-    Serial.println("Formattazione LittleFS...");
-    LittleFS.format(); // Se l'inizializzazione fallisce, formatta il filesystem
-    LittleFS.begin(false); // Riprova l'inizializzazione dopo la formattazione
+    Serial.println("Formatting LittleFS...");
+    LittleFS.format();      // If initialization fails, format the filesystem
+    LittleFS.begin(false);  // Retry initialization after formatting
   }
 
-  // Inizializza il sottosistema I2S per l'audio
+  // Initialize the I2S subsystem for audio
   if (!initializeI2S()) {
-    Serial.println("Errore I2S - Audio disabilitato");
+    Serial.println("I2S Error - Audio disabled");
   } else {
-    // Verifica l'esistenza dei file audio necessari
+    // Check for the existence of necessary audio files
     wavFilesExists = true;
     for (int i = 0; i < sizeof(audioFiles) / sizeof(audioFiles[0]); i++) {
       if (!checkAudioFileExists(audioFiles[i])) {
-        Serial.printf("Errore: File '%s' non trovato!\n", audioFiles[i]);
-        wavFilesExists = false; // Se un file manca, disabilita la riproduzione WAV
+        Serial.printf("Error: File '%s' not found!\n", audioFiles[i]);
+        wavFilesExists = false;  // If a file is missing, disable WAV playback
       } else {
-        Serial.printf("File '%s' trovato e pronto.\n", audioFiles[i]);
+        Serial.printf("File '%s' found and ready.\n", audioFiles[i]);
       }
     }
   }
-  Serial.println("Setup completato!");
+  Serial.println("Setup complete!");
 
-  // Riproduci l'audio di presentazione se i file WAV esistono
+  // Play presentation audio if WAV files exist
   if (wavFilesExists) {
     delay(1000);
     playAudioFile(PRESENTATION_AUDIO);
@@ -62,75 +62,75 @@ void setup() {
 }
 
 void loop() {
-  // Leggi i valori analogici dai pin dei pulsanti
+  // Read analog values from button pins
   int analog0 = getStableAnalogRead(BUTTONS_PIN_0);
   int analog1 = getStableAnalogRead(BUTTONS_PIN_1);
 
-  // Decodifica i valori analogici in stati dei pulsanti
+  // Decode analog values into button states
   int currentButtonA0 = decodeButton(analog0, thresholdsA0);
   int currentButtonA1 = decodeButton(analog1, thresholdsA1);
 
-  bool resetMode = false; // Flag per indicare un reset della modalità
+  bool resetMode = false;  // Flag to indicate a mode reset
 
-  // Gestione del cambio di modalità tramite i pulsanti direzionali di A0 (escluso BTN_C)
+  // Handle mode changes via directional buttons of A0 (excluding BTN_C)
   if (currentButtonA0 != BTN_NONE && lastButtonA0 != currentButtonA0 && currentButtonA0 != BTN_C) {
     switch (currentButtonA0) {
-      case BTN_UR: // Pulsante Up-Right per la modalità Sequenza
+      case BTN_UR:  // Up-Right button for Sequence mode
         if (currentMode != MODE_SEQUENCE) {
           currentMode = MODE_SEQUENCE;
-          resetSequence(); // Resetta la sequenza movimenti
-          isPlayingSequence = false; // Ferma la riproduzione della sequenza
-          stopMotors(); // Ferma i motori
-          Serial.println("=== MODALITÀ SEQUENZA ATTIVATA ===");
+          resetSequence();            // Reset movement sequence
+          isPlayingSequence = false;  // Stop sequence playback
+          stopMotors();               // Stop motors
+          Serial.println("=== SEQUENCE MODE ACTIVATED ===");
           if (wavFilesExists) {
             delay(500);
-            playAudioFile(MOD_SEQ_AUDIO); // Riproduci audio modalità sequenza
+            playAudioFile(MOD_SEQ_AUDIO);  // Play sequence mode audio
           }
         } else {
-          resetMode = true; // Se la modalità è già attiva, prepara il reset
+          resetMode = true;  // If mode is already active, prepare for reset
         }
         break;
 
-      case BTN_UL: // Pulsante Up-Left per la modalità Telecomando
+      case BTN_UL:  // Up-Left button for Remote Control mode
         if (currentMode != MODE_DIRECT) {
           currentMode = MODE_DIRECT;
           isPlayingSequence = false;
           stopMotors();
-          Serial.println("=== MODALITÀ TELECOMANDO ATTIVATA ===");
+          Serial.println("=== REMOTE CONTROL MODE ACTIVATED ===");
           if (wavFilesExists) {
             delay(500);
-            playAudioFile(MOD_DIRECT_AUDIO); // Riproduci audio modalità telecomando
+            playAudioFile(MOD_DIRECT_AUDIO);  // Play remote control mode audio
           }
         } else {
           resetMode = true;
         }
         break;
 
-      case BTN_DL: // Pulsante Down-Left per la modalità Danza
+      case BTN_DL:  // Down-Left button for Dance mode
         if (currentMode != MODE_DANCE) {
           currentMode = MODE_DANCE;
           isPlayingSequence = false;
           stopMotors();
-          Serial.println("=== MODALITÀ DANZA ATTIVATA ===");
+          Serial.println("=== DANCE MODE ACTIVATED ===");
           if (wavFilesExists) {
             delay(500);
-            playAudioFile(MOD_DANCE_AUDIO); // Riproduci audio modalità danza
+            playAudioFile(MOD_DANCE_AUDIO);  // Play dance mode audio
           }
         } else {
           resetMode = true;
         }
         break;
 
-      case BTN_DR: // Pulsante Down-Right per la modalità Inseguimento
+      case BTN_DR:  // Down-Right button for Follow mode
         if (currentMode != MODE_FOLLOW) {
           currentMode = MODE_FOLLOW;
           isPlayingSequence = false;
           stopMotors();
-          firstEntryFollowMode = true; // Imposta il flag per la prima entrata nella modalità Follow
-          Serial.println("=== MODALITÀ INSEGUIMENTO ATTIVATA ===");
+          firstEntryFollowMode = true;  // Set flag for first entry into Follow mode
+          Serial.println("=== FOLLOW MODE ACTIVATED ===");
           if (wavFilesExists) {
             delay(500);
-            playAudioFile(MOD_FOLLOW_AUDIO); // Riproduci audio modalità inseguimento
+            playAudioFile(MOD_FOLLOW_AUDIO);  // Play follow mode audio
           }
         } else {
           resetMode = true;
@@ -138,19 +138,19 @@ void loop() {
         break;
     }
 
-    // Se è stato premuto di nuovo il tasto della funzione precedente, esci dalla modalità corrente e vai in standby
+    // If the previous function button was pressed again, exit the current mode and go to standby
     if (resetMode) {
       currentMode = MODE_STANDBY;
       isPlayingSequence = false;
       stopMotors();
       if (wavFilesExists) {
         delay(500);
-        playAudioFile(PRESENTATION_AUDIO); // Riproduci audio di presentazione
+        playAudioFile(PRESENTATION_AUDIO);  // Play presentation audio
       }
     }
   }
 
-  // Gestione delle diverse modalità operative
+  // Handle different operating modes
   switch (currentMode) {
     case MODE_SEQUENCE:
       handleSequenceMode(currentButtonA0, currentButtonA1, lastButtonA0, lastButtonA1);
@@ -170,19 +170,19 @@ void loop() {
 
     case MODE_STANDBY:
     default:
-      // In modalità standby, il robot non esegue azioni
+      // In standby mode, the robot performs no actions
       break;
   }
 
-  // Salva lo stato attuale dei pulsanti per il prossimo ciclo
+  // Save current button states for the next cycle
   lastButtonA0 = currentButtonA0;
   lastButtonA1 = currentButtonA1;
 
-  // ========== GESTIONE AUDIO ==========
-  // Continua a processare i chunk audio se un file è in riproduzione
+  // ========== AUDIO MANAGEMENT ==========
+  // Continue processing audio chunks if a file is playing
   if (isPlayingAudio) {
     processAudioChunk();
   }
 
-  delay(50); // Breve ritardo per evitare sovraccarico della CPU
+  delay(50);  // Short delay to prevent CPU overload
 }

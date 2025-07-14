@@ -1,271 +1,271 @@
 // robot_modes.h
-// Contiene le dichiarazioni e implementazioni delle funzioni per la gestione delle
-// diverse modalità operative del robot.
+// Contains declarations and implementations of functions for managing the
+// different operating modes of the robot.
 
 #ifndef ROBOT_MODES_H
 #define ROBOT_MODES_H
 
-#include <Arduino.h>        // Per funzioni come millis(), Serial, delay()
-#include "config.h"         // Per le definizioni delle costanti e dei pin
-#include "hardware_io.h"    // Per le funzioni di movimento dei servi e gestione pulsanti
-#include "audio.h"          // Per le funzioni di riproduzione audio e toni
+#include <Arduino.h>      // For functions like millis(), Serial, delay()
+#include "config.h"       // For constant and pin definitions
+#include "hardware_io.h"  // For servo movement and button management functions
+#include "audio.h"        // For audio playback and tone functions
 
-// Dichiarazioni anticipate delle funzioni
+// Forward declarations of functions
 void resetSequence();
 
-// Dichiarazioni e definizioni delle variabili globali relative alle modalità e alla sequenza movimenti
-char moveSequence[10];     // Array per memorizzare la sequenza di movimenti
-int sequenceIndex = 0;         // Indice corrente nella sequenza di registrazione
-bool isPlayingSequence = false;    // Flag per indicare se la sequenza è in riproduzione
-int playIndex = 0;             // Indice corrente nella sequenza di riproduzione
-unsigned long lastMoveTime = 0; // Timestamp dell'ultimo movimento nella sequenza
-static bool firstEntryFollowMode = true; // Flag per la prima entrata nella modalità Follow
-int currentMode = MODE_STANDBY;           // Modalità operativa corrente del robot
+// Declarations and definitions of global variables related to modes and movement sequence
+char moveSequence[10];                    // Array to store the movement sequence
+int sequenceIndex = 0;                    // Current index in the recording sequence
+bool isPlayingSequence = false;           // Flag to indicate if the sequence is playing
+int playIndex = 0;                        // Current index in the playback sequence
+unsigned long lastMoveTime = 0;           // Timestamp of the last movement in the sequence
+static bool firstEntryFollowMode = true;  // Flag for the first entry into Follow mode
+int currentMode = MODE_STANDBY;           // Current operating mode of the robot
 
-// ========== FUNZIONI DI UTILITÀ PER LA SEQUENZA ==========
+// ========== SEQUENCE UTILITY FUNCTIONS ==========
 
-// Aggiunge un movimento alla sequenza.
-// La sequenza ha una dimensione massima di 9 movimenti (+1 per il terminatore null).
+// Adds a movement to the sequence.
+// The sequence has a maximum size of 9 movements (+1 for the null terminator).
 void addToSequence(char move) {
   if (sequenceIndex < 9) {
-    moveSequence[sequenceIndex] = move; // Aggiunge il movimento
-    sequenceIndex++;                    // Incrementa l'indice
-    moveSequence[sequenceIndex] = '\0'; // Termina la stringa
+    moveSequence[sequenceIndex] = move;  // Add the movement
+    sequenceIndex++;                     // Increment the index
+    moveSequence[sequenceIndex] = '\0';  // Null-terminate the string
   } else {
-    // Se la sequenza è piena, la resetta per ricominciare
-    Serial.println("Sequenza piena, resetto.");
+    // If the sequence is full, reset it to start over
+    Serial.println("Sequence full, resetting.");
     resetSequence();
-    addToSequence(move); // Aggiunge il movimento dopo il reset
+    addToSequence(move);  // Add the movement after reset
   }
 }
 
-// Resetta la sequenza di movimenti.
+// Resets the movement sequence.
 void resetSequence() {
   sequenceIndex = 0;
-  moveSequence[0] = '\0'; // Imposta il primo carattere come terminatore null
+  moveSequence[0] = '\0';  // Set the first character as null terminator
 }
 
-// Avvia la riproduzione della sequenza registrata.
+// Starts playback of the recorded sequence.
 void startPlayback() {
-  isPlayingSequence = true; // Imposta il flag di riproduzione
-  playIndex = 0;            // Inizia dal primo movimento
-  lastMoveTime = millis();  // Registra il tempo di avvio
+  isPlayingSequence = true;  // Set the playing flag
+  playIndex = 0;             // Start from the first movement
+  lastMoveTime = millis();   // Record the start time
 }
 
-// Esegue il prossimo movimento nella sequenza.
+// Executes the next movement in the sequence.
 void playSequence() {
   unsigned long currentTime = millis();
 
-  // Controlla se è trascorso il tempo sufficiente per il prossimo movimento
+  // Check if enough time has passed for the next movement
   if (currentTime - lastMoveTime >= MOVE_DURATION) {
     if (playIndex < sequenceIndex) {
-      char currentMove = moveSequence[playIndex]; // Ottiene il movimento corrente
+      char currentMove = moveSequence[playIndex];  // Get the current movement
 
-      // Esegue il movimento corrispondente
+      // Execute the corresponding movement
       switch (currentMove) {
-        case 'U': moveBackward(); break; // 'U' per Indietro
-        case 'D': moveForward(); break;  // 'D' per Avanti
-        case 'L': moveLeft(); break;     // 'L' per Sinistra
-        case 'R': moveRight(); break;    // 'R' per Destra
+        case 'U': moveBackward(); break;  // 'U' for Backward
+        case 'D': moveForward(); break;   // 'D' for Forward
+        case 'L': moveLeft(); break;      // 'L' for Left
+        case 'R': moveRight(); break;     // 'R' for Right
       }
 
-      playIndex++;       // Passa al prossimo movimento
-      lastMoveTime = currentTime; // Aggiorna il tempo dell'ultimo movimento
+      playIndex++;                 // Move to the next movement
+      lastMoveTime = currentTime;  // Update the last movement time
     } else {
-      // La sequenza è terminata
-      isPlayingSequence = false; // Ferma la riproduzione
-      stopMotors();              // Ferma i motori
-      resetSequence();           // Resetta la sequenza per una nuova registrazione
-      delay(1000); // Breve pausa
+      // The sequence has ended
+      isPlayingSequence = false;  // Stop playback
+      stopMotors();               // Stop motors
+      resetSequence();            // Reset the sequence for a new recording
+      delay(1000);                // Short pause
       if (wavFilesExists) {
         delay(1000);
-        playAudioFile(MOD_SEQ_AUDIO); // Riproduce l'audio della modalità sequenza
+        playAudioFile(MOD_SEQ_AUDIO);  // Play sequence mode audio
       }
     }
   }
 }
 
-// ========== FUNZIONI DI GESTIONE DELLE MODALITÀ ==========
+// ========== MODE MANAGEMENT FUNCTIONS ==========
 
-// Gestisce la logica della modalità Sequenza.
-// Permette la registrazione di movimenti e la riproduzione della sequenza.
+// Handles the logic for Sequence mode.
+// Allows recording movements and playing back the sequence.
 void handleSequenceMode(int currentButtonA0, int currentButtonA1, int lastButtonA0, int lastButtonA1) {
   if (isPlayingSequence) {
-    playSequence(); // Se la sequenza è in riproduzione, continua a eseguirla
+    playSequence();  // If the sequence is playing, continue executing it
   } else {
-    // Registrazione movimenti con i tasti direzionali di A1
+    // Record movements with directional keys of A1
     if (currentButtonA1 == BTN_U && lastButtonA1 != BTN_U) {
       addToSequence('U');
-      playTone(NOTE_C4, TONE_DURATION_MS); // Suona un tono per feedback
-      Serial.println("UP aggiunto alla sequenza");
+      playTone(NOTE_C4, TONE_DURATION_MS);  // Play a tone for feedback
+      Serial.println("UP added to sequence");
     }
     if (currentButtonA1 == BTN_D && lastButtonA1 != BTN_D) {
       addToSequence('D');
-      playTone(NOTE_D4, TONE_DURATION_MS); // Suona un tono per feedback
-      Serial.println("DOWN aggiunto alla sequenza");
+      playTone(NOTE_D4, TONE_DURATION_MS);  // Play a tone for feedback
+      Serial.println("DOWN added to sequence");
     }
     if (currentButtonA1 == BTN_L && lastButtonA1 != BTN_L) {
       addToSequence('L');
-      playTone(NOTE_E4, TONE_DURATION_MS); // Suona un tono per feedback
-      Serial.println("LEFT aggiunto alla sequenza");
+      playTone(NOTE_E4, TONE_DURATION_MS);  // Play a tone for feedback
+      Serial.println("LEFT added to sequence");
     }
     if (currentButtonA1 == BTN_R && lastButtonA1 != BTN_R) {
       addToSequence('R');
-      playTone(NOTE_F4, TONE_DURATION_MS); // Suona un tono per feedback
-      Serial.println("RIGHT aggiunto alla sequenza");
+      playTone(NOTE_F4, TONE_DURATION_MS);  // Play a tone for feedback
+      Serial.println("RIGHT added to sequence");
     }
 
-    // BTN_C (Centrale di A0) serve per eseguire la sequenza registrata
+    // BTN_C (Center of A0) is used to execute the recorded sequence
     if (currentButtonA0 == BTN_C && lastButtonA0 != BTN_C) {
       if (sequenceIndex > 0) {
-        Serial.println("Avvio riproduzione sequenza");
-        playTone(NOTE_G4, TONE_DURATION_MS); // Suona un tono per feedback
-        startPlayback(); // Avvia la riproduzione
+        Serial.println("Starting sequence playback");
+        playTone(NOTE_G4, TONE_DURATION_MS);  // Play a tone for feedback
+        startPlayback();                      // Start playback
       } else {
-        Serial.println("Nessuna sequenza registrata!");
+        Serial.println("No sequence recorded!");
       }
     }
   }
 }
 
-// Gestisce la logica della modalità Telecomando (controllo diretto del robot).
+// Handles the logic for Remote Control mode (direct robot control).
 void handleRemoteMode(int currentButtonA1, int lastButtonA1) {
-  static unsigned long lastRemoteCommand = 0; // Timestamp dell'ultimo comando ricevuto
+  static unsigned long lastRemoteCommand = 0;  // Timestamp of the last received command
   unsigned long currentTime = millis();
 
   if (currentButtonA1 != BTN_NONE) {
-    // Esegue il movimento corrispondente al pulsante premuto
+    // Execute the movement corresponding to the pressed button
     switch (currentButtonA1) {
       case BTN_U:
         moveBackward();
-        Serial.println("Telecomando: Indietro");
+        Serial.println("Remote: Backward");
         break;
       case BTN_D:
         moveForward();
-        Serial.println("Telecomando: Avanti");
+        Serial.println("Remote: Forward");
         break;
       case BTN_L:
         moveLeft();
-        Serial.println("Telecomando: Sinistra");
+        Serial.println("Remote: Left");
         break;
       case BTN_R:
         moveRight();
-        Serial.println("Telecomando: Destra");
+        Serial.println("Remote: Right");
         break;
     }
-    lastRemoteCommand = currentTime; // Aggiorna il timestamp dell'ultimo comando
+    lastRemoteCommand = currentTime;  // Update the timestamp of the last command
   } else {
-    // Se non c'è comando da più di 100ms, ferma i motori per evitare movimenti indesiderati
+    // If no command for more than 100ms, stop motors to prevent unintended movements
     if (currentTime - lastRemoteCommand > 100) {
       stopMotors();
     }
   }
 }
 
-// Gestisce la logica della modalità Danza.
-// Esegue una sequenza predefinita di movimenti per simulare una danza.
+// Handles the logic for Dance mode.
+// Executes a predefined sequence of movements to simulate a dance.
 void handleDanceMode() {
-  static unsigned long lastDanceMove = 0; // Timestamp dell'ultimo passo di danza
-  static int danceStep = 0;               // Indice del passo di danza corrente
-  static bool danceInitialized = false;   // Flag per l'inizializzazione della danza
+  static unsigned long lastDanceMove = 0;  // Timestamp of the last dance step
+  static int danceStep = 0;                // Current dance step index
+  static bool danceInitialized = false;    // Flag for dance initialization
   unsigned long currentTime = millis();
 
-  // Inizializza la danza solo una volta per sessione di modalità
+  // Initialize dance only once per mode session
   if (!danceInitialized) {
     danceInitialized = true;
     danceStep = 0;
     lastDanceMove = currentTime;
-    Serial.println("Inizializzazione modalità danza completata");
-    return;   // Esci per dare tempo all'audio di partire
+    Serial.println("Dance mode initialization complete");
+    return;  // Exit to allow audio to start
   }
 
-  // Cambia movimento ogni 800ms
+  // Change movement every 800ms
   if (currentTime - lastDanceMove > 800) {
-    switch (danceStep % 9) { // Cicla attraverso 9 passi di danza
+    switch (danceStep % 9) {  // Cycle through 9 dance steps
       case 0:
         moveRight();
-        Serial.println("Danza: Destra");
+        Serial.println("Dance: Right");
         break;
       case 1:
         moveRight();
-        Serial.println("Danza: Destra");
+        Serial.println("Dance: Right");
         break;
       case 2:
         moveForward();
-        Serial.println("Danza: Avanti");
+        Serial.println("Dance: Forward");
         break;
       case 3:
         moveBackward();
-        Serial.println("Danza: Indietro");
+        Serial.println("Dance: Backward");
         break;
       case 4:
         moveRight();
-        Serial.println("Danza: Destra");
+        Serial.println("Dance: Right");
         break;
       case 5:
         moveLeft();
-        Serial.println("Danza: Sinistra");
+        Serial.println("Dance: Left");
         break;
       case 6:
         moveLeft();
-        Serial.println("Danza: Sinistra");
+        Serial.println("Dance: Left");
         break;
       case 7:
         moveLeft();
-        Serial.println("Danza: Sinistra");
+        Serial.println("Dance: Left");
         break;
       case 8:
         stopMotors();
-        Serial.println("Danza: Pausa");
+        Serial.println("Dance: Pause");
         break;
     }
-    danceStep++;           // Passa al passo successivo
-    lastDanceMove = currentTime; // Aggiorna il timestamp
+    danceStep++;                  // Move to the next step
+    lastDanceMove = currentTime;  // Update the timestamp
   }
 
-  // Il reset dell'inizializzazione avviene automaticamente quando si cambia modalità
+  // Initialization reset happens automatically when changing modes
 }
 
-// Gestisce la logica della modalità Inseguimento.
-// Il robot si muove in base alla luce rilevata dalle fotoresistenze.
+// Handles the logic for Follow mode.
+// The robot moves based on light detected by photoresistors.
 void handleFollowMode() {
-  // Variabili statiche per memorizzare i valori iniziali delle fotoresistenze
+  // Static variables to store initial photoresistor values
   static int initialPhotores0 = -1;
   static int initialPhotores1 = -1;
 
-  // Se è la prima volta che si entra in questa modalità, scatta un'istantanea
+  // If it's the first time entering this mode, take a snapshot
   if (firstEntryFollowMode) {
     initialPhotores0 = getStableAnalogRead(PHOTORES_PIN_0);
     initialPhotores1 = getStableAnalogRead(PHOTORES_PIN_1);
-    Serial.printf("Modalità Inseguimento: Snapshot iniziale - Photores0: %d, Photores1: %d\n", initialPhotores0, initialPhotores1);
-    firstEntryFollowMode = false;   // Resetta il flag dopo aver scattato l'istantanea
+    Serial.printf("Follow Mode: Initial Snapshot - Photores0: %d, Photores1: %d\n", initialPhotores0, initialPhotores1);
+    firstEntryFollowMode = false;  // Reset the flag after taking the snapshot
   }
 
-  // Leggi i valori attuali delle fotoresistenze
+  // Read current photoresistor values
   int currentPhotores0 = getStableAnalogRead(PHOTORES_PIN_0);
   int currentPhotores1 = getStableAnalogRead(PHOTORES_PIN_1);
 
-  Serial.printf("PHOTORES_PIN_0 (attuale): %d, PHOTORES_PIN_1 (attuale): %d\n", currentPhotores0, currentPhotores1);
+  Serial.printf("PHOTORES_PIN_0 (current): %d, PHOTORES_PIN_1 (current): %d\n", currentPhotores0, currentPhotores1);
 
-  // Mappa il valore della fotoresistenza alla velocità del motore.
-  // Assumiamo che 0 sia la massima luce (e quindi massima velocità in avanti)
-  // e initialPhotoresX sia il punto di "stop" (o velocità minima).
-  // Per myservo1 (motore sinistro): max luce -> 180 (avanti max), initialPhotores0 -> 90 (stop)
-  // Per myservo2 (motore destro): max luce -> 0 (avanti max), initialPhotores1 -> 90 (stop)
+  // Map the photoresistor value to motor speed.
+  // Assume 0 is maximum light (and thus maximum forward speed)
+  // and initialPhotoresX is the "stop" point (or minimum speed).
+  // For myservo1 (left motor): max light -> 180 (max forward), initialPhotores0 -> 90 (stop)
+  // For myservo2 (right motor): max light -> 0 (max forward), initialPhotores1 -> 90 (stop)
 
   int speed0 = map(currentPhotores0, ADC_FOR_MAX_SPEED, initialPhotores0, 180, 90);
-  // Limita la velocità per myservo1 tra 90 (stop) e 180 (avanti max)
+  // Limit speed for myservo1 between 90 (stop) and 180 (max forward)
   speed0 = constrain(speed0, 90, 180);
 
   int speed1 = map(currentPhotores1, ADC_FOR_MAX_SPEED, initialPhotores1, 0, 90);
-  // Limita la velocità per myservo2 tra 0 (avanti max) e 90 (stop)
+  // Limit speed for myservo2 between 0 (max forward) and 90 (stop)
   speed1 = constrain(speed1, 0, 90);
 
-  // Applica le velocità ai motori
+  // Apply speeds to motors
   myservo1.write(speed0);
   myservo2.write(speed1);
 
-  Serial.printf("Velocità Motore 1: %d, Velocità Motore 2: %d\n", speed0, speed1);
+  Serial.printf("Motor 1 Speed: %d, Motor 2 Speed: %d\n", speed0, speed1);
 }
 
-#endif // ROBOT_MODES_H
+#endif  // ROBOT_MODES_H

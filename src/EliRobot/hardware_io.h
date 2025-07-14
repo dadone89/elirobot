@@ -1,88 +1,88 @@
 // hardware_io.h
-// Contiene le dichiarazioni e implementazioni delle funzioni per il controllo dei servi
-// e la gestione dei pulsanti analogici.
+// Contains declarations and implementations of functions for servo control
+// and analog button management.
 
 #ifndef HARDWARE_IO_H
 #define HARDWARE_IO_H
 
-#include <Arduino.h>      // Per funzioni come delayMicroseconds(), Serial, ecc.
-#include <ESP32Servo.h>   // Per la classe Servo
-#include <driver/adc.h>   // Per le funzioni ADC dell'ESP32
-#include "config.h"       // Per le definizioni dei pin e delle soglie
+#include <Arduino.h>     // For functions like delayMicroseconds(), Serial, etc.
+#include <ESP32Servo.h>  // For the Servo class
+#include <driver/adc.h>  // For ESP32 ADC functions
+#include "config.h"      // For pin and threshold definitions
 
-// Dichiarazioni delle istanze dei servi (definite in main.ino)
+// Declarations of servo instances (defined in main.ino)
 extern Servo myservo1;
 extern Servo myservo2;
 
-// Dichiarazioni anticipate delle funzioni
+// Forward declarations of functions
 int decodeButton(int value, const int thresholds[]);
 int getStableAnalogRead(int pin);
 int analogReadLegacy(uint8_t gpio_num);
 
 
-// ========== FUNZIONI DI CONTROLLO SERVO ==========
+// ========== SERVO CONTROL FUNCTIONS ==========
 
-// Muove il robot in avanti.
+// Moves the robot forward.
 void moveForward() {
-  myservo1.write(180); // Motore 1 avanti (es. 180 gradi per servo continuo)
-  myservo2.write(0);   // Motore 2 avanti (es. 0 gradi per servo continuo, se invertito)
+  myservo1.write(180);  // Motor 1 forward (e.g., 180 degrees for continuous servo)
+  myservo2.write(0);    // Motor 2 forward (e.g., 0 degrees for continuous servo, if inverted)
 }
 
-// Muove il robot indietro.
+// Moves the robot backward.
 void moveBackward() {
-  myservo1.write(0);   // Motore 1 indietro
-  myservo2.write(180); // Motore 2 indietro
+  myservo1.write(0);    // Motor 1 backward
+  myservo2.write(180);  // Motor 2 backward
 }
 
-// Muove il robot a sinistra.
+// Moves the robot left.
 void moveLeft() {
-  myservo1.write(0);   // Motore 1 indietro (per girare a sinistra)
-  myservo2.write(0);   // Motore 2 avanti (per girare a sinistra)
+  myservo1.write(0);  // Motor 1 backward (to turn left)
+  myservo2.write(0);  // Motor 2 forward (to turn left)
 }
 
-// Muove il robot a destra.
+// Moves the robot right.
 void moveRight() {
-  myservo1.write(180); // Motore 1 avanti (per girare a destra)
-  myservo2.write(180); // Motore 2 indietro (per girare a destra)
+  myservo1.write(180);  // Motor 1 forward (to turn right)
+  myservo2.write(180);  // Motor 2 backward (to turn right)
 }
 
-// Ferma entrambi i motori.
+// Stops both motors.
 void stopMotors() {
-  myservo1.write(90); // Ferma il motore 1 (posizione centrale per servo continuo)
-  myservo2.write(90); // Ferma il motore 2
+  myservo1.write(90);  // Stop motor 1 (center position for continuous servo)
+  myservo2.write(90);  // Stop motor 2
 }
 
-// ========== FUNZIONI DI GESTIONE PULSANTI ==========
+// ========== BUTTON MANAGEMENT FUNCTIONS ==========
 
-// Decodifica un valore analogico in un ID pulsante basato sulle soglie.
-// Restituisce l'indice del pulsante o BTN_NONE se non rientra in nessuna soglia.
+// Decodes an analog value into a button ID based on thresholds.
+// Returns the button index or BTN_NONE if it doesn't fall within any threshold.
 int decodeButton(int value, const int thresholds[]) {
   if (value >= thresholds[0] && value < thresholds[1]) return 0;
   else if (value >= thresholds[1] && value < thresholds[2]) return 1;
   else if (value >= thresholds[2] && value < thresholds[3]) return 2;
   else if (value >= thresholds[3] && value < thresholds[4]) return 3;
   else if (value >= thresholds[4] && value <= thresholds[5]) return 4;
-  else return BTN_NONE; // Nessun pulsante riconosciuto
+  else return BTN_NONE;  // No button recognized
 }
 
-// Esegue letture analogiche multiple da un pin per ottenere un valore più stabile.
-// Calcola la media di 3 letture.
+// Performs multiple analog readings from a pin to get a more stable value.
+// Calculates the average of 3 readings.
 int getStableAnalogRead(int pin) {
   int sum = 0;
   for (int i = 0; i < 3; i++) {
-    sum += analogReadLegacy(pin); // Legge il valore analogico
-    delayMicroseconds(100);       // Breve ritardo tra le letture
+    sum += analogReadLegacy(pin);  // Read the analog value
+    delayMicroseconds(100);        // Short delay between readings
   }
-  return sum / 3; // Restituisce la media
+  return sum / 3;  // Return the average
 }
 
-// Implementazione della funzione analogRead legacy per ESP32.
-// Mappa i pin GPIO specifici ai canali ADC e configura l'ADC.
+// Implementation of the legacy analogRead function for ESP32.
+// Maps specific GPIO pins to ADC channels and configures the ADC.
 int analogReadLegacy(uint8_t gpio_num) {
   adc1_channel_t channel;
   adc_unit_t unit;
 
-  // Mappa il pin GPIO al canale ADC corrispondente
+  // Map the GPIO pin to the corresponding ADC channel
   if (gpio_num == 34) {
     unit = ADC_UNIT_1;
     channel = ADC1_CHANNEL_6;
@@ -96,22 +96,22 @@ int analogReadLegacy(uint8_t gpio_num) {
     unit = ADC_UNIT_1;
     channel = ADC1_CHANNEL_3;
   } else {
-    return -1; // Pin non supportato
+    return -1;  // Unsupported pin
   }
 
-  // Configura la larghezza di bit dell'ADC (12 bit per 0-4095)
+  // Configure the ADC bit width (12 bit for 0-4095)
   if (adc1_config_width(ADC_WIDTH_BIT_12) != ESP_OK) {
     return -1;
   }
 
-  // Configura l'attenuazione del canale ADC (11dB per il range completo)
+  // Configure the ADC channel attenuation (11dB for full range)
   if (adc1_config_channel_atten(channel, ADC_ATTEN_DB_11) != ESP_OK) {
     return -1;
   }
 
-  // Ottiene il valore raw dal canale ADC
+  // Get the raw value from the ADC channel
   int raw_value = adc1_get_raw(channel);
   return raw_value;
 }
 
-#endif // HARDWARE_IO_H
+#endif  // HARDWARE_IO_H
