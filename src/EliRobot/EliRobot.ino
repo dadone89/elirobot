@@ -3,6 +3,7 @@
 #include <driver/i2s.h>
 #include "driver/adc.h"
 #include <esp_task_wdt.h>
+#include <math.h>  // Per la funzione sin()
 
 // Macro helper per min/max con tipi diversi
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -58,6 +59,7 @@
 #define NOTE_E4 330
 #define NOTE_F4 349
 #define NOTE_G4 392
+#define TONE_DURATION_MS 100  // Durata del tono per la pressione dei tasti
 
 // Indici pulsanti
 #define BTN_NONE -1
@@ -151,6 +153,7 @@ void processAudioChunk();
 void stopAudioPlayback();
 bool checkAudioFileExists(const char *filename);
 int analogReadLegacy(uint8_t gpio_num);
+void playTone(int frequency, int duration_ms);  // Nuova funzione per suonare un tono
 
 void setup() {
   Serial.begin(115200);
@@ -379,6 +382,43 @@ bool playAudioFile(const char *filename) {
   return true;
 }
 
+// ========== NUOVA FUNZIONE: playTone ==========
+void playTone(int frequency, int duration_ms) {
+  if (!i2s_initialized) {
+    Serial.println("❌ I2S non inizializzato, impossibile suonare il tono.");
+    return;
+  }
+
+  // Ferma qualsiasi riproduzione audio corrente per assicurare che il tono sia udibile
+  stopAudioPlayback();
+
+  Serial.printf("🎵 Suono tono: %d Hz per %d ms\n", frequency, duration_ms);
+
+  int num_samples = (SAMPLE_RATE * duration_ms) / 1000;
+  size_t bytes_written;
+
+  // Genera e riproduci il tono in blocchi
+  for (int i = 0; i < num_samples; i += DMA_BUF_LEN) {
+    int samples_to_generate = MIN(DMA_BUF_LEN, num_samples - i);
+    for (int j = 0; j < samples_to_generate; j++) {
+      // Calcola il valore del campione per l'onda sinusoidale
+      // Moltiplica per 32767 per ottenere il range completo di un int16_t
+      // Applica il VOLUME
+      int16_t sample = (int16_t)(sin(2 * PI * frequency * ((float)(i + j) / SAMPLE_RATE)) * 32767 * VOLUME);
+
+      // Scrive il campione per entrambi i canali (stereo)
+      audio_buffer[j * 2] = sample;
+      audio_buffer[j * 2 + 1] = sample;
+    }
+    // Scrive i campioni al driver I2S
+    i2s_write(I2S_NUM, audio_buffer, samples_to_generate * 2 * sizeof(int16_t), &bytes_written, portMAX_DELAY);
+  }
+
+  // Pulisce il buffer DMA I2S dopo la riproduzione del tono
+  i2s_zero_dma_buffer(I2S_NUM);
+}
+
+
 // ========== GESTORI MODALITÀ ==========
 void handleSequenceMode(int currentButtonA0, int currentButtonA1, int lastButtonA0, int lastButtonA1) {
   if (isPlayingSequence) {
@@ -387,18 +427,22 @@ void handleSequenceMode(int currentButtonA0, int currentButtonA1, int lastButton
     // Registrazione movimenti con i tasti direzionali di A1
     if (currentButtonA1 == BTN_U && lastButtonA1 != BTN_U) {
       addToSequence('U');
+      playTone(NOTE_C4, TONE_DURATION_MS);  // Suona un tono
       Serial.println("UP aggiunto alla sequenza");
     }
     if (currentButtonA1 == BTN_D && lastButtonA1 != BTN_D) {
       addToSequence('D');
+      playTone(NOTE_D4, TONE_DURATION_MS);  // Suona un tono
       Serial.println("DOWN aggiunto alla sequenza");
     }
     if (currentButtonA1 == BTN_L && lastButtonA1 != BTN_L) {
       addToSequence('L');
+      playTone(NOTE_E4, TONE_DURATION_MS);  // Suona un tono
       Serial.println("LEFT aggiunto alla sequenza");
     }
     if (currentButtonA1 == BTN_R && lastButtonA1 != BTN_R) {
       addToSequence('R');
+      playTone(NOTE_F4, TONE_DURATION_MS);  // Suona un tono
       Serial.println("RIGHT aggiunto alla sequenza");
     }
 
@@ -553,7 +597,7 @@ void handleFollowMode() {
   Serial.printf("Velocità Motore 1: %d, Velocità Motore 2: %d\n", speed0, speed1);
 }
 
-// ========== RESTO DELLE FUNZIONI  ==========
+// ========== RESTO DELLE FUNZIONI   ==========
 int getStableAnalogRead(int pin) {
   int sum = 0;
   for (int i = 0; i < 3; i++) {
