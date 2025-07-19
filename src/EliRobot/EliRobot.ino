@@ -9,8 +9,16 @@
 #include "audio.h"        // Includes audio playback and tone functions
 #include "robot_modes.h"  // Includes functions for mode management
 
+#define TFT_MOSI 23     // Automatically assigned with ESP8266 if not defined
+#define TFT_SCLK 18     // Automatically assigned with ESP8266 if not defined
+#define TFT_CS 5        // Chip select control pin
+#define TFT_DC 2        // Data Command control pin
+#define TFT_RST 4       // Reset pin (could connect to NodeMCU RST, see next line)
+#define TFT_WIDTH 240   // Larghezza del display GC9A01
+#define TFT_HEIGHT 240  // Altezza del display GC9A01
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI();
+#include "occhio.h"  // Include il tuo file di intestazione per l'immagine
 
 // Servo instances (defined here and declared 'extern' in hardware_io.h)
 Servo myservo1;
@@ -27,24 +35,26 @@ void setup() {
   Serial.println("=== ESP32 Robot Controller + Audio Player ===");
 
 
+  // Inizializza il display
   tft.init();
+  // Imposta l'orientamento del display (0-3). Prova diverse rotazioni se l'immagine appare ruotata.
   tft.setRotation(0);
-  tft.fillScreen(TFT_BLACK);
-  
-  // Disegna rettangoli colorati per il test
-  tft.fillRect(10, 10, 70, 70, TFT_RED);     // Dovrebbe essere ROSSO
-  tft.fillRect(90, 10, 70, 70, TFT_GREEN);   // Dovrebbe essere VERDE  
-  tft.fillRect(170, 10, 70, 70, TFT_BLUE);   // Dovrebbe essere BLU
-  
-  tft.fillRect(10, 90, 70, 70, TFT_YELLOW);  // Dovrebbe essere GIALLO
-  tft.fillRect(90, 90, 70, 70, TFT_MAGENTA); // Dovrebbe essere MAGENTA
-  tft.fillRect(170, 90, 70, 70, TFT_CYAN);   // Dovrebbe essere CIANO
-  
-  // Testo bianco
-  tft.setTextColor(TFT_WHITE);
-  tft.drawString("Test Colori", 80, 200);
+  // Pulisci lo schermo, utile per iniziare
+  tft.fillScreen(TFT_BLACK);  // Riempi lo schermo di nero
 
-  
+  Serial.println("Display inizializzato. Disegno l'immagine...");
+
+  // Calcola le coordinate per centrare l'immagine (se l'immagine è più piccola del display)
+  int x_offset = (TFT_WIDTH - image_width) / 2;
+  int y_offset = (TFT_HEIGHT - image_height) / 2;
+
+  // Disegna l'immagine. Ora i riferimenti all'immagine e alle sue dimensioni
+  // vengono da occhio.h (che a sua volta si collega a occhio.c)
+  tft.pushImage(x_offset, y_offset, image_width, image_height, occhio);
+
+  Serial.println("Immagine dell'occhio disegnata sul display.");
+
+
   // Configure and attach servos to pins
   myservo1.attach(SERVO_PIN_1);
   myservo2.attach(SERVO_PIN_2);
