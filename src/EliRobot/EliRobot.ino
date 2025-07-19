@@ -1,7 +1,3 @@
-// main.ino
-// Main file for the ESP32 Robot Controller program.
-// Contains the setup() and loop() functions and manages the general flow.
-
 #include <ESP32Servo.h>   // Library for servo control
 #include <LittleFS.h>     // Library for LittleFS filesystem management
 #include "config.h"       // Includes constant and pin definitions
@@ -9,16 +5,33 @@
 #include "audio.h"        // Includes audio playback and tone functions
 #include "robot_modes.h"  // Includes functions for mode management
 
-#define TFT_MOSI 23     // Automatically assigned with ESP8266 if not defined
-#define TFT_SCLK 18     // Automatically assigned with ESP8266 if not defined
-#define TFT_CS 5        // Chip select control pin
-#define TFT_DC 2        // Data Command control pin
-#define TFT_RST 4       // Reset pin (could connect to NodeMCU RST, see next line)
-#define TFT_WIDTH 240   // Larghezza del display GC9A01
-#define TFT_HEIGHT 240  // Altezza del display GC9A01
-#include <TFT_eSPI.h>
-TFT_eSPI tft = TFT_eSPI();
-#include "occhio.h"  // Include il tuo file di intestazione per l'immagine
+// Inclusione delle nuove librerie Adafruit per il display
+#include "Adafruit_GFX.h"
+#include "Adafruit_GC9A01A.h"  // Assicurati di aver installato Adafruit_GC9A01_Library
+#include <SPI.h>               // Necessario per il bus SPI
+#include "occhio.h"            // La tua immagine dell'occhio
+
+// Pin CONDIVISI per entrambi i Display
+#define SHARED_MOSI 23  // MOSI (Master Out Slave In)
+#define SHARED_SCLK 18  // SCLK (Serial Clock)
+#define SHARED_DC 2     // DC (Data/Command)
+
+// Pin per Display 1
+#define TFT1_CS 5   // Chip Select per Display 1
+#define TFT1_RST 4  // RST per Display 1
+
+// Pin per Display 2
+#define TFT2_CS 13   // Chip Select per Display 2
+#define TFT2_RST 27  // RST per Display 2 (o qualsiasi altro GPIO libero)
+
+// Dimensioni del display GC9A01
+#define TFT_WIDTH 240
+#define TFT_HEIGHT 240
+
+// I costruttori della Adafruit_GC9A01A per hardware SPI prendono solo CS, DC, RST.
+// Implicamente useranno l'oggetto SPI globale (che è VSPI per ESP32 di default).
+Adafruit_GC9A01A tft1(TFT1_CS, SHARED_DC, TFT1_RST);  // Display 1
+Adafruit_GC9A01A tft2(TFT2_CS, SHARED_DC, TFT2_RST);  // Display 2
 
 // Servo instances (defined here and declared 'extern' in hardware_io.h)
 Servo myservo1;
@@ -28,32 +41,73 @@ Servo myservo2;
 int lastButtonA0 = BTN_NONE;
 int lastButtonA1 = BTN_NONE;
 
+// Funzione per disegnare un'immagine specchiata orizzontalmente
+void drawMirroredImage(Adafruit_GFX &display, int x, int y, int w, int h, const uint16_t *data) {
+  uint16_t *row_buffer = (uint16_t *)malloc(w * sizeof(uint16_t));
+  if (!row_buffer) {
+    Serial.println("Errore: Impossibile allocare buffer riga per mirroring.");
+    return;
+  }
+
+  for (int j = 0; j < h; j++) {
+    for (int i = 0; i < w; i++) {
+      row_buffer[i] = data[j * w + i];
+    }
+
+    // Per disegnare una riga specchiata, ricrei una riga invertita e poi usi drawRGBBitmap.
+    uint16_t *mirrored_row = (uint16_t *)malloc(w * sizeof(uint16_t));
+    if (!mirrored_row) {
+      Serial.println("Errore: Impossibile allocare buffer per riga specchiata.");
+      free(row_buffer);
+      return;
+    }
+    for (int i = 0; i < w; i++) {
+      mirrored_row[i] = row_buffer[w - 1 - i];
+    }
+
+    display.drawRGBBitmap(x, y + j, mirrored_row, w, 1);  // Disegna una riga alla volta
+
+    free(mirrored_row);
+  }
+  free(row_buffer);
+}
+
+
 void setup() {
   Serial.begin(115200);  // Initialize serial communication
   delay(1000);           // Short pause to stabilize
 
   Serial.println("=== ESP32 Robot Controller + Audio Player ===");
 
+  // Inizializza il bus SPI globale con i pin condivisi.
+  // IMPORTANTE: Questo configura i pin per l'oggetto 'SPI' globale (che su ESP32 è VSPI).
+  // MISO è -1 perché il display non lo usa. SS è -1 perché i CS sono gestiti individualmente.
+  SPI.begin(SHARED_SCLK, -1, SHARED_MOSI, -1);
 
-  // Inizializza il display
-  tft.init();
-  // Imposta l'orientamento del display (0-3). Prova diverse rotazioni se l'immagine appare ruotata.
-  tft.setRotation(0);
-  // Pulisci lo schermo, utile per iniziare
-  tft.fillScreen(TFT_BLACK);  // Riempi lo schermo di nero
+  // --- CONFIGURAZIONE DISPLAY 1 (Occhio Sinistro) ---
+  Serial.println("Inizializzazione Occhio 1...");
+  tft1.begin();
+  tft1.setRotation(0);
+  tft1.fillScreen(0x0000);  // Nero
 
-  Serial.println("Display inizializzato. Disegno l'immagine...");
+  int x_offset_1 = (TFT_WIDTH - image_width) / 2;
+  int y_offset_1 = (TFT_HEIGHT - image_height) / 2;
+  tft1.drawRGBBitmap(x_offset_1, y_offset_1, occhio, image_width, image_height);
+  Serial.println("Occhio 1 disegnato.");
 
-  // Calcola le coordinate per centrare l'immagine (se l'immagine è più piccola del display)
-  int x_offset = (TFT_WIDTH - image_width) / 2;
-  int y_offset = (TFT_HEIGHT - image_height) / 2;
+  // --- CONFIGURAZIONE DISPLAY 2 (Occhio Destro - specchiato) ---
+  Serial.println("Inizializzazione Occhio 2...");
+  tft2.begin();
+  tft2.setRotation(0);
+  tft2.fillScreen(0x0000);
 
-  // Disegna l'immagine. Ora i riferimenti all'immagine e alle sue dimensioni
-  // vengono da occhio.h (che a sua volta si collega a occhio.c)
-  tft.pushImage(x_offset, y_offset, image_width, image_height, occhio);
+  int x_offset_2 = (TFT_WIDTH - image_width) / 2;
+  int y_offset_2 = (TFT_HEIGHT - image_height) / 2;
 
-  Serial.println("Immagine dell'occhio disegnata sul display.");
+  drawMirroredImage(tft2, x_offset_2, y_offset_2, image_width, image_height, occhio);
 
+  Serial.println("Occhio 2 (specchiato) disegnato.");
+  Serial.println("Display inizializzati e occhi disegnati.");
 
   // Configure and attach servos to pins
   myservo1.attach(SERVO_PIN_1);
