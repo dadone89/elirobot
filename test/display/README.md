@@ -1,38 +1,53 @@
-Guida completa per configurare un display TFT circolare GC9A01 con microcontrollore ESP32 utilizzando la libreria TFT_eSPI.
+# Guida completa per configurare un display TFT circolare GC9A01 con microcontrollore ESP32 utilizzando la libreria TFT_eSPI.
 
-📋 Prerequisiti
-Scheda di sviluppo ESP32
-Display TFT circolare GC9A01 (240x240 pixel)
-Cavi jumper per i collegamenti
-Arduino IDE con supporto per ESP32
-Libreria TFT_eSPI installata
-🔌 Passo 1: Collegamenti Hardware
-⚠️ CRITICO: Ricontrolla attentamente i collegamenti hardware. Anche un solo pin sbagliato può impedire al display di funzionare.
+---
 
-Pin GC9A01	Pin ESP32	Descrizione
-VCC	3.3V	Alimentazione
-GND	GND	Massa
-SCK (CLK)	GPIO18	Clock SPI
-SDA (MOSI)	GPIO23	Dati SPI
-CS	GPIO5	Chip Select
-DC	GPIO2	Data/Command
-RST	GPIO4	Reset
-BL	3.3V o PWM	Backlight (3.3V o PWM)
-⚙️ Passo 2: Configurazione della Libreria TFT_eSPI
-⚠️ CRITICO: Configura correttamente il file User_Setup.h nella libreria TFT_eSPI per il tuo display GC9A01 e i pin dell'ESP32.
+### 📋 Prerequisiti
 
-Passaggi
-Vai nella cartella delle librerie di Arduino (es. Documenti/Arduino/libraries/TFT_eSPI)
-Apri il file User_Setup.h. Se non esiste, copia e rinomina uno dei file User_Setup_*.h (es. User_Setup_Template.h)
-Decommenta solo le righe pertinenti al tuo setup, tutte le altre devono essere commentate con //
-Esempio di Configurazione per GC9A01 su ESP32
-C++
+* **Scheda di sviluppo ESP32**
+* **Display TFT circolare GC9A01** (240x240 pixel)
+* **Cavi jumper** per i collegamenti
+* **Arduino IDE** con supporto per ESP32
+* **Libreria TFT_eSPI** installata
+
+---
+
+### 🔌 Passo 1: Collegamenti Hardware
+
+⚠️ **CRITICO:** Ricontrolla attentamente i collegamenti hardware. Anche un solo pin sbagliato può impedire al display di funzionare.
+
+| Pin GC9A01   | Pin ESP32  | Descrizione             |
+| :----------- | :--------- | :---------------------- |
+| **VCC** | 3.3V       | Alimentazione           |
+| **GND** | GND        | Massa                   |
+| **SCK (CLK)**| GPIO18     | Clock SPI               |
+| **SDA (MOSI)**| GPIO23     | Dati SPI                |
+| **CS** | GPIO5      | Chip Select             |
+| **DC** | GPIO2      | Data/Command            |
+| **RST** | GPIO4      | Reset                   |
+| **BL** | 3.3V o PWM | Backlight (3.3V o PWM)  |
+
+---
+
+### ⚙️ Passo 2: Configurazione della Libreria TFT_eSPI
+
+⚠️ **CRITICO:** Configura correttamente il file `User_Setup.h` nella libreria TFT_eSPI per il tuo display GC9A01 e i pin dell'ESP32.
+
+#### Passaggi
+
+1.  Vai nella cartella delle librerie di Arduino (es. `Documenti/Arduino/libraries/TFT_eSPI`)
+2.  Apri il file `User_Setup.h`. Se non esiste, copia e rinomina uno dei file `User_Setup_*.h` (es. `User_Setup_Template.h`)
+3.  Decommenta solo le righe pertinenti al tuo setup, tutte le altre devono essere commentate con `//`
+
+#### Esempio di Configurazione per GC9A01 su ESP32
+
+```cpp
 // Configurazione Display GC9A01 per ESP32
 
 #define GC9A01_DRIVER // Abilita il driver GC9A01
 
 // Dimensioni display
-#define TFT_WIDTH  240
+#define TFT_WIDTH 240
 #define TFT_HEIGHT 240
 
 // Pin SPI per ESP32 (verifica che coincidano con i tuoi collegamenti)
@@ -43,7 +58,7 @@ C++
 #define TFT_RST   4  // Reset
 
 // Frequenza SPI
-#define SPI_FREQUENCY  40000000 // 40MHz (prova anche 27000000 in caso di problemi)
+#define SPI_FREQUENCY 40000000 // 40MHz (prova anche 27000000 in caso di problemi)
 
 // Controllo backlight (opzionale)
 // #define TFT_BL   27 // Esempio: GPIO27 per il backlight
@@ -63,9 +78,10 @@ C++
 // Impostazioni ESP32
 #define ESP32_DMA
 #define TFT_SPI_HOST VSPI // O HSPI, VSPI più comune
+```
 Salva il file User_Setup.h dopo le modifiche.
 
-🔧 Risoluzione Problemi
+### 🔧 Risoluzione Problemi
 Il display non funziona?
 
 Verifica i collegamenti (problema più comune)
@@ -80,8 +96,8 @@ Schermo nero	Cablaggio errato o alimentazione assente
 Display distorto	Driver sbagliato o pin configurati male
 Nessuna risposta	Problema SPI, controlla SCK e MOSI
 
-🧪 Codice di Test Base
-C++
+### 🧪 Codice di Test Base
+```cpp
 #include <TFT_eSPI.h>
 
 TFT_eSPI tft = TFT_eSPI();
@@ -100,8 +116,9 @@ void setup() {
 void loop() {
   // Il tuo codice qui
 }
+```
 
-🖼️ Preparazione Immagine Bitmap con GIMP
+### 🖼️ Preparazione Immagine Bitmap con GIMP
 1. Apri l'immagine JPEG in GIMP
 2. Immagine > Scala immagine → 240x240 pixel
 3. Immagine > Modalità > RGB (assicurati che sia RGB!)
@@ -109,13 +126,13 @@ void loop() {
 5. Nelle opzioni PNG, assicurati di NON selezionare "Indicizzato"
 6. utilizza http://www.rinkydinkelectronics.com/t_imageconverter565.php per generare il file .c
 
-📚 Risorse Aggiuntive
+### 📚 Risorse Aggiuntive
 Documentazione TFT_eSPI
 Pinout ESP32
 Datasheet GC9A01
 
-📄 Licenza
+### 📄 Licenza
 Questa guida è fornita "così com'è" solo per scopi educativi. Fai riferimento alle rispettive licenze delle librerie per i termini di utilizzo.
 
-💡 Suggerimento: Se hai ancora problemi, prova una breadboard per i collegamenti provvisori e verifica ogni connessione con un multimetro.
+💡 Suggerimento: Se hai ancora problemi, verifica ogni connessione!
 
