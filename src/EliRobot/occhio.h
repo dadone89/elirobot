@@ -10,6 +10,7 @@
 
 // Dati dell'immagine dell'occhio (se definiti qui, altrimenti assicurati che 'occhio' sia esterno)
 extern const uint16_t occhio[] PROGMEM;
+extern const uint16_t happy[] PROGMEM;
 
 // Dichiarazioni delle dimensioni dell'immagine
 const int image_width = 240;
@@ -61,6 +62,26 @@ void drawMirroredImage(Adafruit_GFX &display, int x, int y, int w, int h, const 
   free(row_buffer);
 }
 
+// Funzione per disegnare un'immagine specchiata verticalmente
+void drawFlippedImage(Adafruit_GFX &display, int x, int y, int w, int h, const uint16_t *data, int y_offset_image = 0) {
+  uint16_t *row_buffer = (uint16_t *)malloc(w * sizeof(uint16_t));
+  if (!row_buffer) {
+    Serial.println("Errore: Impossibile allocare buffer riga per flip.");
+    return;
+  }
+
+  for (int j = 0; j < h; j++) {
+    // La riga da disegnare è quella specchiata verticalmente
+    // Corrisponde alla riga (h - 1 - j) dell'immagine originale
+    for (int i = 0; i < w; i++) {
+      row_buffer[i] = pgm_read_word(&data[(h - 1 - j) * w + i]); // Legge la riga invertita
+    }
+    
+    display.drawRGBBitmap(x, y + j + y_offset_image, row_buffer, w, 1); // Disegna la riga
+  }
+  free(row_buffer);
+}
+
 // Funzione per inizializzare i display degli occhi
 void initializeEyeDisplays() {
   // Inizializza il bus SPI globale con i pin condivisi.
@@ -72,10 +93,9 @@ void initializeEyeDisplays() {
   tft1.setRotation(0);
   tft1.fillScreen(0x0000);  // Nero
 
-  int x_offset_1 = (TFT_WIDTH - image_width) / 2;
-  int y_offset_1 = (TFT_HEIGHT - image_height) / 2;
-  tft1.drawRGBBitmap(x_offset_1, y_offset_1, occhio, image_width, image_height);
-  Serial.println("Occhio 1 disegnato.");
+  //int x_offset_1 = (TFT_WIDTH - image_width) / 2;
+  //int y_offset_1 = (TFT_HEIGHT - image_height) / 2;
+  //tft1.drawRGBBitmap(x_offset_1, y_offset_1, happy, image_width, image_height);
 
   // --- CONFIGURAZIONE DISPLAY 2 (Occhio Destro - specchiato) ---
   Serial.println("Inizializzazione Occhio 2...");
@@ -89,10 +109,10 @@ void initializeEyeDisplays() {
   // Esempio di utilizzo dell'offset Y nella chiamata:
   // drawMirroredImage(tft2, x_offset_2, y_offset_2, image_width, image_height, occhio, 10); // Sposta in basso di 10 pixel
   // drawMirroredImage(tft2, x_offset_2, y_offset_2, image_width, image_height, occhio, -5); // Sposta in alto di 5 pixel
-  drawMirroredImage(tft2, x_offset_2, y_offset_2, image_width, image_height, occhio, 30);  // Nessun offset (default)
+  
+  //drawMirroredImage(tft2, x_offset_2, y_offset_2, image_width, image_height, happy, -20);
 
-  Serial.println("Occhio 2 (specchiato) disegnato.");
-  Serial.println("Display inizializzati e occhi disegnati.");
+  Serial.println("Display inizializzati.");
 }
 
 #endif  // OCCHIO_H

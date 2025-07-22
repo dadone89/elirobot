@@ -4,9 +4,7 @@
 #include "hardware_io.h"  // Includes servo control and button management functions
 #include "audio.h"        // Includes audio playback and tone functions
 #include "robot_modes.h"  // Includes functions for mode management
-
-// Inclusione del nuovo file header per la gestione degli occhi
-#include "occhio.h"
+#include "occhio.h"       // Includes functions for eyes management
 
 // Servo instances (defined here and declared 'extern' in hardware_io.h)
 Servo myservo1;
@@ -24,6 +22,12 @@ void setup() {
 
   // Inizializza i display degli occhi
   initializeEyeDisplays();
+
+  int x_offset_1 = (TFT_WIDTH - image_width) / 2;
+  int y_offset_1 = (TFT_HEIGHT - image_height) / 2;
+
+  tft1.drawRGBBitmap(x_offset_1, y_offset_1, occhio, image_width, image_height);
+  tft2.drawRGBBitmap(x_offset_1, y_offset_1, occhio, image_width, image_height);
 
   // Configure and attach servos to pins
   myservo1.attach(SERVO_PIN_1);

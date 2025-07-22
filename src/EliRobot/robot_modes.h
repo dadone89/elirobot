@@ -9,6 +9,7 @@
 #include "config.h"       // For constant and pin definitions
 #include "hardware_io.h"  // For servo movement and button management functions
 #include "audio.h"        // For audio playback and tone functions
+#include "occhio.h"       // Includes functions for eyes management
 
 // Forward declarations of functions
 void resetSequence();
@@ -188,6 +189,10 @@ void handleDanceMode() {
         break;
       case 1:
         moveRight();
+
+        drawFlippedImage(tft1, x_offset_1, y_offset_1, image_width, image_height, happy, -20);
+        drawFlippedImage(tft2, x_offset_1, y_offset_1, image_width, image_height, happy, -20);
+
         Serial.println("Dance: Right");
         break;
       case 2:
@@ -204,6 +209,10 @@ void handleDanceMode() {
         break;
       case 5:
         moveLeft();
+
+        tft1.drawRGBBitmap(x_offset_1, y_offset_1, occhio, image_width, image_height);
+        tft2.drawRGBBitmap(x_offset_1, y_offset_1, occhio, image_width, image_height);
+
         Serial.println("Dance: Left");
         break;
       case 6:
