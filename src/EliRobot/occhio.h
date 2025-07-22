@@ -13,13 +13,8 @@ extern const uint16_t occhio[] PROGMEM;
 extern const uint16_t happy[] PROGMEM;
 
 // Dichiarazioni delle dimensioni dell'immagine
-const int image_width = 240;
-const int image_height = 240;
-
-// Pin CONDIVISI per entrambi i Display
-#define SHARED_MOSI 23  // MOSI (Master Out Slave In)
-#define SHARED_SCLK 18  // SCLK (Serial Clock)
-#define SHARED_DC 2     // DC (Data/Command)
+#define IMAGE_WIDTH 240
+#define IMAGE_HEIGHT 240
 
 // Dimensioni del display GC9A01
 #define TFT_WIDTH 240
@@ -29,33 +24,40 @@ const int image_height = 240;
 Adafruit_GC9A01A tft1(TFT1_CS, SHARED_DC, TFT1_RST);  // Display 1
 Adafruit_GC9A01A tft2(TFT2_CS, SHARED_DC, TFT2_RST);  // Display 2
 
+// Funzione per disegnare un'immagine NORMALE (senza modifiche)
+void drawNormalImage(Adafruit_GFX &display, const uint16_t *data, int y_offset_image = 0) {
+  int x_pos = (TFT_WIDTH - IMAGE_WIDTH) / 2;
+  int y_pos = (TFT_HEIGHT - IMAGE_HEIGHT) / 2;
+  display.drawRGBBitmap(x_pos, y_pos + y_offset_image, (uint16_t *)data, IMAGE_WIDTH, IMAGE_HEIGHT);
+}
+
 // Funzione per disegnare un'immagine specchiata orizzontalmente
-// Aggiunto y_offset_image per spostare l'immagine verticalmente
-void drawMirroredImage(Adafruit_GFX &display, int x, int y, int w, int h, const uint16_t *data, int y_offset_image = 0) {
-  uint16_t *row_buffer = (uint16_t *)malloc(w * sizeof(uint16_t));
+void drawMirroredImage(Adafruit_GFX &display, const uint16_t *data, int y_offset_image = 0) {
+  int x_pos = (TFT_WIDTH - IMAGE_WIDTH) / 2;
+  int y_pos = (TFT_HEIGHT - IMAGE_HEIGHT) / 2;
+
+  uint16_t *row_buffer = (uint16_t *)malloc(IMAGE_WIDTH * sizeof(uint16_t));
   if (!row_buffer) {
     Serial.println("Errore: Impossibile allocare buffer riga per mirroring.");
     return;
   }
 
-  for (int j = 0; j < h; j++) {
-    for (int i = 0; i < w; i++) {
-      row_buffer[i] = data[j * w + i];
+  for (int j = 0; j < IMAGE_HEIGHT; j++) {
+    for (int i = 0; i < IMAGE_WIDTH; i++) {
+      row_buffer[i] = pgm_read_word(&data[j * IMAGE_WIDTH + i]);
     }
 
-    // Per disegnare una riga specchiata, ricrei una riga invertita e poi usi drawRGBBitmap.
-    uint16_t *mirrored_row = (uint16_t *)malloc(w * sizeof(uint16_t));
+    uint16_t *mirrored_row = (uint16_t *)malloc(IMAGE_WIDTH * sizeof(uint16_t));
     if (!mirrored_row) {
       Serial.println("Errore: Impossibile allocare buffer per riga specchiata.");
       free(row_buffer);
       return;
     }
-    for (int i = 0; i < w; i++) {
-      mirrored_row[i] = row_buffer[w - 1 - i];
+    for (int i = 0; i < IMAGE_WIDTH; i++) {
+      mirrored_row[i] = row_buffer[IMAGE_WIDTH - 1 - i];
     }
 
-    // Applica l'offset Y qui
-    display.drawRGBBitmap(x, y + j + y_offset_image, mirrored_row, w, 1);  // Disegna una riga alla volta con offset
+    display.drawRGBBitmap(x_pos, y_pos + j + y_offset_image, mirrored_row, IMAGE_WIDTH, 1);
 
     free(mirrored_row);
   }
@@ -63,21 +65,43 @@ void drawMirroredImage(Adafruit_GFX &display, int x, int y, int w, int h, const 
 }
 
 // Funzione per disegnare un'immagine specchiata verticalmente
-void drawFlippedImage(Adafruit_GFX &display, int x, int y, int w, int h, const uint16_t *data, int y_offset_image = 0) {
-  uint16_t *row_buffer = (uint16_t *)malloc(w * sizeof(uint16_t));
+void drawFlippedImage(Adafruit_GFX &display, const uint16_t *data, int y_offset_image = 0) {
+  int x_pos = (TFT_WIDTH - IMAGE_WIDTH) / 2;
+  int y_pos = (TFT_HEIGHT - IMAGE_HEIGHT) / 2;
+
+  uint16_t *row_buffer = (uint16_t *)malloc(IMAGE_WIDTH * sizeof(uint16_t));
   if (!row_buffer) {
     Serial.println("Errore: Impossibile allocare buffer riga per flip.");
     return;
   }
 
-  for (int j = 0; j < h; j++) {
-    // La riga da disegnare è quella specchiata verticalmente
-    // Corrisponde alla riga (h - 1 - j) dell'immagine originale
-    for (int i = 0; i < w; i++) {
-      row_buffer[i] = pgm_read_word(&data[(h - 1 - j) * w + i]); // Legge la riga invertita
+  for (int j = 0; j < IMAGE_HEIGHT; j++) {
+    for (int i = 0; i < IMAGE_WIDTH; i++) {
+      row_buffer[i] = pgm_read_word(&data[(IMAGE_HEIGHT - 1 - j) * IMAGE_WIDTH + i]);
     }
-    
-    display.drawRGBBitmap(x, y + j + y_offset_image, row_buffer, w, 1); // Disegna la riga
+
+    display.drawRGBBitmap(x_pos, y_pos + j + y_offset_image, row_buffer, IMAGE_WIDTH, 1);
+  }
+  free(row_buffer);
+}
+
+// Funzione per disegnare un'immagine specchiata Orizzontalmente e Verticalmente
+void drawMirroredAndFlippedImage(Adafruit_GFX &display, const uint16_t *data, int y_offset_image = 0) {
+  int x_pos = (TFT_WIDTH - IMAGE_WIDTH) / 2;
+  int y_pos = (TFT_HEIGHT - IMAGE_HEIGHT) / 2;
+
+  uint16_t *row_buffer = (uint16_t *)malloc(IMAGE_WIDTH * sizeof(uint16_t));
+  if (!row_buffer) {
+    Serial.println("Errore: Impossibile allocare buffer riga per mirror+flip.");
+    return;
+  }
+
+  for (int j = 0; j < IMAGE_HEIGHT; j++) {
+    for (int i = 0; i < IMAGE_WIDTH; i++) {
+      row_buffer[i] = pgm_read_word(&data[(IMAGE_HEIGHT - 1 - j) * IMAGE_WIDTH + (IMAGE_WIDTH - 1 - i)]);
+    }
+
+    display.drawRGBBitmap(x_pos, y_pos + j + y_offset_image, row_buffer, IMAGE_WIDTH, 1);
   }
   free(row_buffer);
 }
@@ -93,9 +117,9 @@ void initializeEyeDisplays() {
   tft1.setRotation(0);
   tft1.fillScreen(0x0000);  // Nero
 
-  //int x_offset_1 = (TFT_WIDTH - image_width) / 2;
-  //int y_offset_1 = (TFT_HEIGHT - image_height) / 2;
-  //tft1.drawRGBBitmap(x_offset_1, y_offset_1, happy, image_width, image_height);
+  //int x_offset_1 = (TFT_WIDTH - IMAGE_WIDTH) / 2;
+  //int y_offset_1 = (TFT_HEIGHT - IMAGE_HEIGHT) / 2;
+  //tft1.drawRGBBitmap(x_offset_1, y_offset_1, happy, IMAGE_WIDTH, IMAGE_HEIGHT);
 
   // --- CONFIGURAZIONE DISPLAY 2 (Occhio Destro - specchiato) ---
   Serial.println("Inizializzazione Occhio 2...");
@@ -103,14 +127,14 @@ void initializeEyeDisplays() {
   tft2.setRotation(0);
   tft2.fillScreen(0x0000);
 
-  int x_offset_2 = (TFT_WIDTH - image_width) / 2;
-  int y_offset_2 = (TFT_HEIGHT - image_height) / 2;
+  int x_offset_2 = (TFT_WIDTH - IMAGE_WIDTH) / 2;
+  int y_offset_2 = (TFT_HEIGHT - IMAGE_HEIGHT) / 2;
 
   // Esempio di utilizzo dell'offset Y nella chiamata:
-  // drawMirroredImage(tft2, x_offset_2, y_offset_2, image_width, image_height, occhio, 10); // Sposta in basso di 10 pixel
-  // drawMirroredImage(tft2, x_offset_2, y_offset_2, image_width, image_height, occhio, -5); // Sposta in alto di 5 pixel
+  // drawMirroredImage(tft2, x_offset_2, y_offset_2, IMAGE_WIDTH, IMAGE_HEIGHT, occhio, 10); // Sposta in basso di 10 pixel
+  // drawMirroredImage(tft2, x_offset_2, y_offset_2, IMAGE_WIDTH, IMAGE_HEIGHT, occhio, -5); // Sposta in alto di 5 pixel
   
-  //drawMirroredImage(tft2, x_offset_2, y_offset_2, image_width, image_height, happy, -20);
+  //drawMirroredImage(tft2, x_offset_2, y_offset_2, IMAGE_WIDTH, IMAGE_HEIGHT, happy, -20);
 
   Serial.println("Display inizializzati.");
 }

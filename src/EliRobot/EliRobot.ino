@@ -23,11 +23,8 @@ void setup() {
   // Inizializza i display degli occhi
   initializeEyeDisplays();
 
-  int x_offset_1 = (TFT_WIDTH - image_width) / 2;
-  int y_offset_1 = (TFT_HEIGHT - image_height) / 2;
-
-  tft1.drawRGBBitmap(x_offset_1, y_offset_1, occhio, image_width, image_height);
-  tft2.drawRGBBitmap(x_offset_1, y_offset_1, occhio, image_width, image_height);
+  drawMirroredAndFlippedImage(tft1, occhio, 0);
+  drawFlippedImage(tft2, occhio, -20);
 
   // Configure and attach servos to pins
   myservo1.attach(SERVO_PIN_1);

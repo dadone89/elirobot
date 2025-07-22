@@ -190,8 +190,8 @@ void handleDanceMode() {
       case 1:
         moveRight();
 
-        drawFlippedImage(tft1, x_offset_1, y_offset_1, image_width, image_height, happy, -20);
-        drawFlippedImage(tft2, x_offset_1, y_offset_1, image_width, image_height, happy, -20);
+        drawFlippedImage(tft1, happy, 0);
+        drawMirroredAndFlippedImage(tft2, happy, -20);
 
         Serial.println("Dance: Right");
         break;
@@ -210,8 +210,8 @@ void handleDanceMode() {
       case 5:
         moveLeft();
 
-        tft1.drawRGBBitmap(x_offset_1, y_offset_1, occhio, image_width, image_height);
-        tft2.drawRGBBitmap(x_offset_1, y_offset_1, occhio, image_width, image_height);
+        drawMirroredAndFlippedImage(tft1, occhio, 0);
+        drawFlippedImage(tft2, occhio, -20);
 
         Serial.println("Dance: Left");
         break;
