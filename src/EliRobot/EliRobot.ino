@@ -1,13 +1,10 @@
-// main.ino
-// Main file for the ESP32 Robot Controller program.
-// Contains the setup() and loop() functions and manages the general flow.
-
 #include <ESP32Servo.h>   // Library for servo control
 #include <LittleFS.h>     // Library for LittleFS filesystem management
 #include "config.h"       // Includes constant and pin definitions
 #include "hardware_io.h"  // Includes servo control and button management functions
 #include "audio.h"        // Includes audio playback and tone functions
 #include "robot_modes.h"  // Includes functions for mode management
+#include "occhio.h"       // Includes functions for eyes management
 
 // Servo instances (defined here and declared 'extern' in hardware_io.h)
 Servo myservo1;
@@ -22,6 +19,12 @@ void setup() {
   delay(1000);           // Short pause to stabilize
 
   Serial.println("=== ESP32 Robot Controller + Audio Player ===");
+
+  // Inizializza i display degli occhi
+  initializeEyeDisplays();
+
+  drawNormalImage(tft1, occhio, 0);
+  drawMirroredImage(tft2, occhio, -20);
 
   // Configure and attach servos to pins
   myservo1.attach(SERVO_PIN_1);

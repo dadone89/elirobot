@@ -9,6 +9,7 @@
 #include "config.h"       // For constant and pin definitions
 #include "hardware_io.h"  // For servo movement and button management functions
 #include "audio.h"        // For audio playback and tone functions
+#include "occhio.h"       // Includes functions for eyes management
 
 // Forward declarations of functions
 void resetSequence();
@@ -79,6 +80,8 @@ void playSequence() {
       delay(1000);                // Short pause
       if (wavFilesExists) {
         delay(1000);
+        drawNormalImage(tft1, happy, 0);
+        drawMirroredImage(tft2, happy, -20);
         playAudioFile(MOD_SEQ_AUDIO);  // Play sequence mode audio
       }
     }
@@ -114,11 +117,12 @@ void handleSequenceMode(int currentButtonA0, int currentButtonA1, int lastButton
       playTone(NOTE_F4, TONE_DURATION_MS);  // Play a tone for feedback
       Serial.println("RIGHT added to sequence");
     }
-
     // BTN_C (Center of A0) is used to execute the recorded sequence
     if (currentButtonA0 == BTN_C && lastButtonA0 != BTN_C) {
       if (sequenceIndex > 0) {
         Serial.println("Starting sequence playback");
+        drawNormalImage(tft1, occhio, 0);
+        drawMirroredImage(tft2, occhio, -20);
         playTone(NOTE_G4, TONE_DURATION_MS);  // Play a tone for feedback
         startPlayback();                      // Start playback
       } else {
@@ -188,6 +192,10 @@ void handleDanceMode() {
         break;
       case 1:
         moveRight();
+
+        drawFlippedImage(tft1, happy, 0);
+        drawMirroredAndFlippedImage(tft2, happy, -20);
+
         Serial.println("Dance: Right");
         break;
       case 2:
@@ -204,6 +212,10 @@ void handleDanceMode() {
         break;
       case 5:
         moveLeft();
+
+        drawNormalImage(tft1, occhio, 0);
+        drawMirroredImage(tft2, occhio, -20);
+
         Serial.println("Dance: Left");
         break;
       case 6:

@@ -10,6 +10,20 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+// Pin per Display 1
+#define TFT1_CS 5   // Chip Select per Display 1
+#define TFT1_RST 4  // RST per Display 1
+
+// Pin per Display 2
+#define TFT2_CS 13   // Chip Select per Display 2
+#define TFT2_RST 27  // RST per Display 2 (o qualsiasi altro GPIO libero)
+
+// Pin CONDIVISI per entrambi i Display
+#define SHARED_MOSI 23  // MOSI (Master Out Slave In)
+#define SHARED_SCLK 18  // SCLK (Serial Clock)
+#define SHARED_DC 2     // DC (Data/Command)
+
+
 // I2S audio pins
 #define I2S_BCK_PIN 26
 #define I2S_WS_PIN 25
