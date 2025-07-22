@@ -23,8 +23,8 @@ void setup() {
   // Inizializza i display degli occhi
   initializeEyeDisplays();
 
-  drawMirroredAndFlippedImage(tft1, occhio, 0);
-  drawFlippedImage(tft2, occhio, -20);
+  drawNormalImage(tft1, occhio, 0);
+  drawMirroredImage(tft2, occhio, -20);
 
   // Configure and attach servos to pins
   myservo1.attach(SERVO_PIN_1);
