@@ -10,6 +10,14 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+// Pin per Display 1
+#define TFT1_CS 5   // Chip Select per Display 1
+#define TFT1_RST 4  // RST per Display 1
+
+// Pin per Display 2
+#define TFT2_CS 13   // Chip Select per Display 2
+#define TFT2_RST 27  // RST per Display 2 (o qualsiasi altro GPIO libero)
+
 // I2S audio pins
 #define I2S_BCK_PIN 26
 #define I2S_WS_PIN 25
