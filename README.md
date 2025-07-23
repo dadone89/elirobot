@@ -66,7 +66,7 @@ This project is distributed under a Creative Commons Attribution-NonCommercial 4
 ## Authors
 
 - [dadone89](https://github.com/dadone89)
-[danielealberti.it](https://danielealberti.it)
+[danielealberti.it](https://www.danielealberti.it)
 
 ---
 
