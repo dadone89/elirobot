@@ -12,10 +12,10 @@
 - Playback of pre-recorded sounds to guide actions
 - Very cute eyes!
 - Modes:
-  - Sequence: execution of movement sequences programmable by the child
-  - Dance: performs repeated movements to imitate a dance
-  - Remote Control: movements directly activated by directional arrows
-  - Light Following: thanks to 2 photoresistors on the front, it will follow light, for example from a flashlight
+   - Sequence: execution of movement sequences programmable by the child
+   - Dance: performs repeated movements to imitate a dance
+   - Remote Control: movements directly activated by directional arrows
+   - Light Following: thanks to 2 photoresistors on the front, it will follow light, for example from a flashlight
 - Modular and expandable open-source project
 
 ## Features in Development
