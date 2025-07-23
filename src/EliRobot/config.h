@@ -4,25 +4,25 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include <Arduino.h>  // Necessary for types like uint32_t, size_t, etc.
+// Necessary for types like uint32_t, size_t, etc.
+#include <Arduino.h>
 
 // Helper macros for min/max with different types
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-// Pin per Display 1
+// Display 1 pins
 #define TFT1_CS 5   // Chip Select per Display 1
 #define TFT1_RST 4  // RST per Display 1
 
-// Pin per Display 2
+// Display 2 pins
 #define TFT2_CS 13   // Chip Select per Display 2
 #define TFT2_RST 27  // RST per Display 2 (o qualsiasi altro GPIO libero)
 
-// Pin CONDIVISI per entrambi i Display
+// Common Displays pins
 #define SHARED_MOSI 23  // MOSI (Master Out Slave In)
 #define SHARED_SCLK 18  // SCLK (Serial Clock)
 #define SHARED_DC 2     // DC (Data/Command)
-
 
 // I2S audio pins
 #define I2S_BCK_PIN 26

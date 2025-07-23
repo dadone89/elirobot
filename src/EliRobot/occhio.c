@@ -5,9 +5,8 @@
 // Memory usage   : 115200 bytes
 
 
-#include <Arduino.h> // Potrebbe essere necessario per uint16_t, anche se spesso implicito
-#include <pgmspace.h>  // <--- AGGIUNGI QUESTA RIGA PER PROGMEM
-
+#include <Arduino.h>
+#include <pgmspace.h>
 
 const unsigned short occhio[] PROGMEM={
 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF,   // 0x0010 (16) pixels
