@@ -1,6 +1,6 @@
-![Development Status](https://img.shields.io/badge/Status-In%20Development-yellow)
-![Version](https://img.shields.io/badge/Version-0.3.0--alpha-red)
-![Build](https://img.shields.io/badge/Build-Unstable-red)
+![Development Status](https://img.shields.io/badge/Status-Stable-brightgreen)
+![Version](https://img.shields.io/badge/Version-1.0.0-blue)
+![Build](https://img.shields.io/badge/Build-Stable-brightgreen)
 
 # elirobot
 
@@ -39,7 +39,7 @@
 
 2. Apri il file principale (`elirobot.ino`) tramite l’IDE Arduino.
 
-3. Collega i componenti secondo lo schema presente nella cartella `docs/hardware` (o segui le istruzioni nel file `SCHEMA.md` se disponibile).
+3. Collega i componenti secondo gli schemi presenti nella cartella `docs/hardware` (o segui le istruzioni nel file `SCHEMA.md` se disponibile).
 
 4. Carica lo sketch sulla scheda, se utilizzi ESP32 assicurati di avere prima installato dal board manager il supporto alla scheda, nel mio caso ho utilizzato ESP32 by Espressif V3.2.0.
 
