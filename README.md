@@ -33,10 +33,10 @@
 ## Installation
 
 1. Clone the repository:
-   ```bash
-   git clone [https://github.com/dadone89/elirobot.git](https://github.com/dadone89/elirobot.git)
-   cd elirobot
-   ```
+   ```bash
+   git clone https://github.com/dadone89/elirobot.git
+   cd elirobot
+   ```
 
 2. Open the main file (`elirobot.ino`) using the Arduino IDE.
 
