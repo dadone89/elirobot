@@ -121,9 +121,9 @@ void handleSequenceMode(int currentButtonA0, int currentButtonA1, int lastButton
     if (currentButtonA0 == BTN_C && lastButtonA0 != BTN_C) {
       if (sequenceIndex > 0) {
         Serial.println("Starting sequence playback");
+        playTone(NOTE_G4, TONE_DURATION_MS);  // Play a tone for feedback
         drawNormalImage(tft1, occhio, 0);
         drawMirroredImage(tft2, occhio, -20);
-        playTone(NOTE_G4, TONE_DURATION_MS);  // Play a tone for feedback
         startPlayback();                      // Start playback
       } else {
         Serial.println("No sequence recorded!");
@@ -192,10 +192,6 @@ void handleDanceMode() {
         break;
       case 1:
         moveRight();
-
-        drawFlippedImage(tft1, happy, 0);
-        drawMirroredAndFlippedImage(tft2, happy, -20);
-
         Serial.println("Dance: Right");
         break;
       case 2:
@@ -203,6 +199,8 @@ void handleDanceMode() {
         Serial.println("Dance: Forward");
         break;
       case 3:
+        drawFlippedImage(tft1, happy, 0);
+        drawMirroredAndFlippedImage(tft2, happy, -20);
         moveBackward();
         Serial.println("Dance: Backward");
         break;
@@ -212,10 +210,6 @@ void handleDanceMode() {
         break;
       case 5:
         moveLeft();
-
-        drawNormalImage(tft1, occhio, 0);
-        drawMirroredImage(tft2, occhio, -20);
-
         Serial.println("Dance: Left");
         break;
       case 6:
@@ -223,6 +217,8 @@ void handleDanceMode() {
         Serial.println("Dance: Left");
         break;
       case 7:
+        drawNormalImage(tft1, occhio, 0);
+        drawMirroredImage(tft2, occhio, -20);
         moveLeft();
         Serial.println("Dance: Left");
         break;
