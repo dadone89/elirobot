@@ -15,12 +15,14 @@ int lastButtonA0 = BTN_NONE;
 int lastButtonA1 = BTN_NONE;
 
 void setup() {
-  Serial.begin(115200);  // Initialize serial communication
-  delay(1000);           // Short pause to stabilize
+  // Initialize serial communication
+  Serial.begin(115200);
+  // Short pause to stabilize
+  delay(1000);
 
   Serial.println("=== ESP32 Robot Controller + Audio Player ===");
 
-  // Inizializza i display degli occhi
+  // Init displays
   initializeEyeDisplays();
 
   drawNormalImage(tft1, occhio, 0);
@@ -78,7 +80,8 @@ void loop() {
   // Handle mode changes via directional buttons of A0 (excluding BTN_C)
   if (currentButtonA0 != BTN_NONE && lastButtonA0 != currentButtonA0 && currentButtonA0 != BTN_C) {
     switch (currentButtonA0) {
-      case BTN_UR:  // Up-Right button for Sequence mode
+      // Up-Right button for Sequence mode
+      case BTN_UR:
         if (currentMode != MODE_SEQUENCE) {
           currentMode = MODE_SEQUENCE;
           resetSequence();            // Reset movement sequence
@@ -93,8 +96,8 @@ void loop() {
           resetMode = true;  // If mode is already active, prepare for reset
         }
         break;
-
-      case BTN_UL:  // Up-Left button for Remote Control mode
+      // Up-Left button for Remote Control mode
+      case BTN_UL:
         if (currentMode != MODE_DIRECT) {
           currentMode = MODE_DIRECT;
           isPlayingSequence = false;
@@ -108,8 +111,8 @@ void loop() {
           resetMode = true;
         }
         break;
-
-      case BTN_DL:  // Down-Left button for Dance mode
+      // Down-Left button for Dance mode
+      case BTN_DL:
         if (currentMode != MODE_DANCE) {
           currentMode = MODE_DANCE;
           isPlayingSequence = false;
@@ -123,17 +126,19 @@ void loop() {
           resetMode = true;
         }
         break;
-
-      case BTN_DR:  // Down-Right button for Follow mode
+      // Down-Right button for Follow mode
+      case BTN_DR:
         if (currentMode != MODE_FOLLOW) {
           currentMode = MODE_FOLLOW;
           isPlayingSequence = false;
           stopMotors();
-          firstEntryFollowMode = true;  // Set flag for first entry into Follow mode
+          // Set flag for first entry into Follow mode
+          firstEntryFollowMode = true;
           Serial.println("=== FOLLOW MODE ACTIVATED ===");
           if (wavFilesExists) {
             delay(500);
-            playAudioFile(MOD_FOLLOW_AUDIO);  // Play follow mode audio
+            // Play follow mode audio
+            playAudioFile(MOD_FOLLOW_AUDIO);
           }
         } else {
           resetMode = true;
@@ -148,7 +153,8 @@ void loop() {
       stopMotors();
       if (wavFilesExists) {
         delay(500);
-        playAudioFile(PRESENTATION_AUDIO);  // Play presentation audio
+        // Play presentation audio
+        playAudioFile(PRESENTATION_AUDIO);
       }
     }
   }
@@ -186,6 +192,6 @@ void loop() {
   if (isPlayingAudio) {
     processAudioChunk();
   }
-
-  delay(50);  // Short delay to prevent CPU overload
+  // Short delay to prevent CPU overload
+  delay(50);
 }

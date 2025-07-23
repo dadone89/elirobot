@@ -1,44 +1,44 @@
 #ifndef OCCHIO_H
 #define OCCHIO_H
 
-// Inclusione delle nuove librerie Adafruit per il display
+// Include new Adafruit libraries for the display
 #include "Adafruit_GFX.h"
-#include "Adafruit_GC9A01A.h"  // Assicurati di aver installato Adafruit_GC9A01_Library
-#include <SPI.h>               // Necessario per il bus SPI
-#include <Arduino.h>           // Per definizioni come uint16_t e Serial
-#include <pgmspace.h>          // Per PROGMEM
+#include "Adafruit_GC9A01A.h"  // Make sure you have installed Adafruit_GC9A01_Library
+#include <SPI.h>               // Required for SPI bus
+#include <Arduino.h>           // For definitions like uint16_t and Serial
+#include <pgmspace.h>          // For PROGMEM
 
-// Dati dell'immagine dell'occhio (se definiti qui, altrimenti assicurati che 'occhio' sia esterno)
+// Eye image data (if defined here, otherwise make sure 'occhio' is external)
 extern const uint16_t occhio[] PROGMEM;
 extern const uint16_t happy[] PROGMEM;
 
-// Dichiarazioni delle dimensioni dell'immagine
+// Image dimension declarations
 #define IMAGE_WIDTH 240
 #define IMAGE_HEIGHT 240
 
-// Dimensioni del display GC9A01
+// GC9A01 display dimensions
 #define TFT_WIDTH 240
 #define TFT_HEIGHT 240
 
-// I costruttori della Adafruit_GC9A01A per hardware SPI.
+// Adafruit_GC9A01A constructors for hardware SPI.
 Adafruit_GC9A01A tft1(TFT1_CS, SHARED_DC, TFT1_RST);  // Display 1
 Adafruit_GC9A01A tft2(TFT2_CS, SHARED_DC, TFT2_RST);  // Display 2
 
-// Funzione per disegnare un'immagine NORMALE (senza modifiche)
+// Function to draw a NORMAL image (without modifications)
 void drawNormalImage(Adafruit_GFX &display, const uint16_t *data, int y_offset_image = 0) {
   int x_pos = (TFT_WIDTH - IMAGE_WIDTH) / 2;
   int y_pos = (TFT_HEIGHT - IMAGE_HEIGHT) / 2;
   display.drawRGBBitmap(x_pos, y_pos + y_offset_image, (uint16_t *)data, IMAGE_WIDTH, IMAGE_HEIGHT);
 }
 
-// Funzione per disegnare un'immagine specchiata orizzontalmente
+// Function to draw a horizontally mirrored image
 void drawMirroredImage(Adafruit_GFX &display, const uint16_t *data, int y_offset_image = 0) {
   int x_pos = (TFT_WIDTH - IMAGE_WIDTH) / 2;
   int y_pos = (TFT_HEIGHT - IMAGE_HEIGHT) / 2;
 
   uint16_t *row_buffer = (uint16_t *)malloc(IMAGE_WIDTH * sizeof(uint16_t));
   if (!row_buffer) {
-    Serial.println("Errore: Impossibile allocare buffer riga per mirroring.");
+    Serial.println("Error: Unable to allocate row buffer for mirroring.");
     return;
   }
 
@@ -49,7 +49,7 @@ void drawMirroredImage(Adafruit_GFX &display, const uint16_t *data, int y_offset
 
     uint16_t *mirrored_row = (uint16_t *)malloc(IMAGE_WIDTH * sizeof(uint16_t));
     if (!mirrored_row) {
-      Serial.println("Errore: Impossibile allocare buffer per riga specchiata.");
+      Serial.println("Error: Unable to allocate buffer for mirrored row.");
       free(row_buffer);
       return;
     }
@@ -64,14 +64,14 @@ void drawMirroredImage(Adafruit_GFX &display, const uint16_t *data, int y_offset
   free(row_buffer);
 }
 
-// Funzione per disegnare un'immagine specchiata verticalmente
+// Function to draw a vertically flipped image
 void drawFlippedImage(Adafruit_GFX &display, const uint16_t *data, int y_offset_image = 0) {
   int x_pos = (TFT_WIDTH - IMAGE_WIDTH) / 2;
   int y_pos = (TFT_HEIGHT - IMAGE_HEIGHT) / 2;
 
   uint16_t *row_buffer = (uint16_t *)malloc(IMAGE_WIDTH * sizeof(uint16_t));
   if (!row_buffer) {
-    Serial.println("Errore: Impossibile allocare buffer riga per flip.");
+    Serial.println("Error: Unable to allocate row buffer for flip.");
     return;
   }
 
@@ -85,14 +85,14 @@ void drawFlippedImage(Adafruit_GFX &display, const uint16_t *data, int y_offset_
   free(row_buffer);
 }
 
-// Funzione per disegnare un'immagine specchiata Orizzontalmente e Verticalmente
+// Function to draw an image mirrored both Horizontally and Vertically
 void drawMirroredAndFlippedImage(Adafruit_GFX &display, const uint16_t *data, int y_offset_image = 0) {
   int x_pos = (TFT_WIDTH - IMAGE_WIDTH) / 2;
   int y_pos = (TFT_HEIGHT - IMAGE_HEIGHT) / 2;
 
   uint16_t *row_buffer = (uint16_t *)malloc(IMAGE_WIDTH * sizeof(uint16_t));
   if (!row_buffer) {
-    Serial.println("Errore: Impossibile allocare buffer riga per mirror+flip.");
+    Serial.println("Error: Unable to allocate row buffer for mirror+flip.");
     return;
   }
 
@@ -106,23 +106,19 @@ void drawMirroredAndFlippedImage(Adafruit_GFX &display, const uint16_t *data, in
   free(row_buffer);
 }
 
-// Funzione per inizializzare i display degli occhi
+// Function to initialize the eye displays
 void initializeEyeDisplays() {
-  // Inizializza il bus SPI globale con i pin condivisi.
+  // Initialize the global SPI bus with shared pins.
   SPI.begin(SHARED_SCLK, -1, SHARED_MOSI, -1);
 
-  // --- CONFIGURAZIONE DISPLAY 1 (Occhio Sinistro) ---
-  Serial.println("Inizializzazione Occhio 1...");
+  // --- DISPLAY 1 CONFIGURATION (Left Eye) ---
+  Serial.println("Initializing Eye 1...");
   tft1.begin();
   tft1.setRotation(0);
-  tft1.fillScreen(0x0000);  // Nero
+  tft1.fillScreen(0x0000);  // Black
 
-  //int x_offset_1 = (TFT_WIDTH - IMAGE_WIDTH) / 2;
-  //int y_offset_1 = (TFT_HEIGHT - IMAGE_HEIGHT) / 2;
-  //tft1.drawRGBBitmap(x_offset_1, y_offset_1, happy, IMAGE_WIDTH, IMAGE_HEIGHT);
-
-  // --- CONFIGURAZIONE DISPLAY 2 (Occhio Destro - specchiato) ---
-  Serial.println("Inizializzazione Occhio 2...");
+  // --- DISPLAY 2 CONFIGURATION (Right Eye - mirrored) ---
+  Serial.println("Initializing Eye 2...");
   tft2.begin();
   tft2.setRotation(0);
   tft2.fillScreen(0x0000);
@@ -130,13 +126,7 @@ void initializeEyeDisplays() {
   int x_offset_2 = (TFT_WIDTH - IMAGE_WIDTH) / 2;
   int y_offset_2 = (TFT_HEIGHT - IMAGE_HEIGHT) / 2;
 
-  // Esempio di utilizzo dell'offset Y nella chiamata:
-  // drawMirroredImage(tft2, x_offset_2, y_offset_2, IMAGE_WIDTH, IMAGE_HEIGHT, occhio, 10); // Sposta in basso di 10 pixel
-  // drawMirroredImage(tft2, x_offset_2, y_offset_2, IMAGE_WIDTH, IMAGE_HEIGHT, occhio, -5); // Sposta in alto di 5 pixel
-  
-  //drawMirroredImage(tft2, x_offset_2, y_offset_2, IMAGE_WIDTH, IMAGE_HEIGHT, happy, -20);
-
-  Serial.println("Display inizializzati.");
+  Serial.println("Displays initialized.");
 }
 
 #endif  // OCCHIO_H
