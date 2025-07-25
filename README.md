@@ -1,73 +1,73 @@
-![Development Status](https://img.shields.io/badge/Status-In%20Development-yellow)
-![Version](https://img.shields.io/badge/Version-0.3.0--alpha-red)
-![Build](https://img.shields.io/badge/Build-Unstable-red)
+![Development Status](https://img.shields.io/badge/Status-Stable-brightgreen)
+![Version](https://img.shields.io/badge/Version-1.0.0-blue)
+![Build](https://img.shields.io/badge/Build-Stable-brightgreen)
 
 # elirobot
 
-**elirobot** è un robottino educativo progettato da e per bambini, basato su Arduino. Il bambino può impartire comandi direttamente utilizzando la tastiera integrata nella parte superiore del robot. I comandi includono movimenti di base e funzioni speciali pensate per stimolare la creatività e l’apprendimento del coding.
+**elirobot** is an educational robot designed by and for children, based on Arduino. Children can give commands directly using the integrated keyboard on the top of the robot. Commands include basic movements and special functions designed to stimulate creativity and coding learning.
 
-## Funzionalità principali
+## Key Features
 
-- Interfaccia semplice e intuitiva tramite tastiera fisica
-- Riproduzione di suoni pre-registrati per guidare le azioni
-- Modalità:
-   - Sequenza: esecuzione di sequenze di movimenti programmabili dal bambino
-   - Ballo: esegue dei movimenti ripetuti per imitare un ballo
-   - Telecomando: movimenti azionati direttamente dalle frecce direzionali
-- Progetto open source modulare ed espandibile
+- Simple and intuitive interface via physical keyboard
+- Playback of pre-recorded sounds to guide actions
+- Very cute eyes!
+- Modes:
+   - Sequence: execution of movement sequences programmable by the child
+   - Dance: performs repeated movements to imitate a dance
+   - Remote Control: movements directly activated by directional arrows
+   - Light Following: thanks to 2 photoresistors on the front, it will follow light, for example from a flashlight
+- Modular and expandable open-source project
 
-## Funzionalità in sviluppo
+## Features in Development
 
-- Funzioni speciali (ad esempio: inseguimento luce, piccoli giochi logici, etc)
-- Estetica (occhi, luci varie)
+- Other special functions (e.g., small logic games, etc.)
+- Aesthetics (various lights)
 
-## Prerequisiti
+## Prerequisites
 
-- Scheda Arduino compatibile (nello specifico ho utilizzato un ESP32DevModule a 30pin, scheda basata su ESP32)
-- Componenti elettronici (motori servo a rotazione continua, pulsanti, batterie lipo, LED, buzzer, cavetti di collegamento, ecc.)
-- Stampante 3D per realizzazione tasti (ma puoi realizzarla anche in altri modi più semplici)
-- IDE Arduino 2.x.x e pc per la programmazione
+- Compatible Arduino board (specifically, I used a 30-pin ESP32DevModule board, based on ESP32)
+- Electronic components (continuous rotation servo motors, buttons, LiPo batteries, LEDs, buzzer, connection cables, etc.)
+- 3D printer for key creation (but you can also make them in other simpler ways)
+- Arduino IDE 2.x.x and a PC for programming
 
-## Installazione
+## Installation
 
-1. Clona il repository:
+1. Clone the repository:
    ```bash
    git clone https://github.com/dadone89/elirobot.git
    cd elirobot
    ```
 
-2. Apri il file principale (`elirobot.ino`) tramite l’IDE Arduino.
+2. Open the main file (`elirobot.ino`) using the Arduino IDE.
 
-3. Collega i componenti secondo lo schema presente nella cartella `docs/hardware` (o segui le istruzioni nel file `SCHEMA.md` se disponibile).
+3. Connect the components according to the schematics in the `docs/hardware` folder (or follow the instructions in the `SCHEMA.md` file if available).
 
-4. Carica lo sketch sulla scheda, se utilizzi ESP32 assicurati di avere prima installato dal board manager il supporto alla scheda, nel mio caso ho utilizzato ESP32 by Espressif V3.2.0.
+4. Upload the sketch to the board. If you are using ESP32, make sure you have first installed board support from the board manager; in my case, I used ESP32 by Espressif V3.2.0.
 
-## Utilizzo
+## Usage
 
-1. Accendi/alimenta elirobot.
-2. Utilizza la pulsantiera posta sulla parte superiore per impartire i comandi desiderati.
-3. Sperimenta con le funzioni di movimento e le funzioni speciali.
-4. Puoi modificare il codice o aggiungere nuove funzionalità per personalizzare il robot.
+1. Turn on/power elirobot.
+2. Use the keypad on the top to give the desired commands.
+3. Experiment with movement functions and special functions.
+4. You can modify the code or add new functionalities to customize the robot.
 
-## Contribuire
+## Contributing
 
-Contributi e idee sono i benvenuti! Puoi:
+Contributions and ideas are welcome! You can:
 
-- Segnalare bug o suggerire nuove funzionalità tramite le issue
-- Inviare pull request per miglioramenti hardware/software
-- Proporre implementazioni alternative o materiale didattico
+- Report bugs or suggest new features via issues
+- Submit pull requests for hardware/software improvements
+- Propose alternative implementations or educational materials
 
-## Licenza
+## License
 
-Questo progetto è distribuito con una licenza Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0).  
-Non è consentito l’uso commerciale del progetto o dei suoi derivati.  
-Per maggiori dettagli consulta il file [`LICENSE`](LICENSE) o visita [https://creativecommons.org/licenses/by-nc/4.0/deed.it](https://creativecommons.org/licenses/by-nc/4.0/deed.it).
+This project is distributed under a Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0) license. Commercial use of the project or its derivatives is not permitted. For more details, consult the [`LICENSE`](LICENSE) file or visit [https://creativecommons.org/licenses/by-nc/4.0/deed.it](https://creativecommons.org/licenses/by-nc/4.0/deed.it).
 
-## Autori
+## Authors
 
 - [dadone89](https://github.com/dadone89)
-[danielealberti.it](https://danielealberti.it)
+[danielealberti.it](https://www.danielealberti.it)
 
 ---
 
-Divertiti a costruire, programmare e giocare con elirobot!
+Have fun building, programming, and playing with elirobot!

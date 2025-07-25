@@ -1,0 +1,102 @@
+#include "Adafruit_GFX.h"
+#include "Adafruit_GC9A01A.h" // Assicurati di aver installato Adafruit_GC9A01_Library
+#include <SPI.h>              // Necessario per il bus SPI
+#include "occhio.h"           // La tua immagine
+
+// Pin CONDIVISI per entrambi i Display
+// Questi pin andranno collegati in parallelo a entrambi i display!
+// La libreria Adafruit_GC9A01A in modalità hardware SPI utilizzerà questi pin
+// configurati per l'oggetto SPI globale.
+#define SHARED_MOSI 23 // MOSI (Master Out Slave In)
+#define SHARED_SCLK 18 // SCLK (Serial Clock)
+#define SHARED_DC   2  // DC (Data/Command)
+// Pin per Display 1
+#define TFT1_RST  4 // RST per Display 1
+
+// Pin per Display 2
+#define TFT2_RST  27 // RST per Display 2 (o qualsiasi altro GPIO libero)
+
+// Pin CS separati per ogni Display
+#define TFT1_CS 5  // Chip Select per Display 1
+#define TFT2_CS 16 // Chip Select per Display 2
+
+// Gli oggetti display.
+// I costruttori della Adafruit_GC9A01A per hardware SPI prendono solo CS, DC, RST.
+// Implicamente useranno l'oggetto SPI globale (che è VSPI per ESP32 di default).
+// Oggetti display
+Adafruit_GC9A01A tft1(TFT1_CS, SHARED_DC, TFT1_RST); // Passa RST di D1
+Adafruit_GC9A01A tft2(TFT2_CS, SHARED_DC, TFT2_RST); // Passa RST di D2
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Avvio programma display occhi (un bus SPI, CS separati)...");
+
+  // Inizializza il bus SPI globale con i pin condivisi.
+  // IMPORTANTE: Questo configura i pin per l'oggetto 'SPI' globale (che su ESP32 è VSPI).
+  // MISO è -1 perché il display non lo usa. SS è -1 perché i CS sono gestiti individualmente.
+  SPI.begin(SHARED_SCLK, -1, SHARED_MOSI, -1);
+  
+  // --- CONFIGURAZIONE DISPLAY 1 ---
+  // Il display utilizzerà i pin SPI configurati con SPI.begin() e i pin CS/DC/RST passati al costruttore.
+  tft1.begin(); 
+  tft1.setRotation(0); 
+  tft1.fillScreen(0x0000); // Nero
+
+  Serial.println("Occhio 1 inizializzato.");
+  
+  int x_offset_1 = (240 - image_width) / 2;
+  int y_offset_1 = (240 - image_height) / 2;
+  tft1.drawRGBBitmap(x_offset_1, y_offset_1, occhio, image_width, image_height);
+  Serial.println("Occhio 1 disegnato.");
+
+  // --- CONFIGURAZIONE DISPLAY 2 ---
+  // Analogamente, userà lo stesso bus SPI ma il suo pin CS separato.
+  tft2.begin();
+  tft2.setRotation(0);
+  tft2.fillScreen(0x0000);
+
+  Serial.println("Occhio 2 inizializzato.");
+
+  int x_offset_2 = (240 - image_width) / 2;
+  int y_offset_2 = (240 - image_height) / 2;
+  
+  drawMirroredImage(tft2, x_offset_2, y_offset_2, image_width, image_height, occhio);
+  
+  Serial.println("Occhio 2 (specchiato) disegnato.");
+}
+
+void loop() {
+  // Il loop non ha bisogno di fare nulla in questo esempio statico.
+}
+
+// Funzione per disegnare un'immagine specchiata orizzontalmente
+// Adatta per Adafruit_GFX
+void drawMirroredImage(Adafruit_GFX &display, int x, int y, int w, int h, const uint16_t *data) {
+  uint16_t *row_buffer = (uint16_t*)malloc(w * sizeof(uint16_t));
+  if (!row_buffer) {
+    Serial.println("Errore: Impossibile allocare buffer riga per mirroring.");
+    return;
+  }
+
+  for (int j = 0; j < h; j++) {
+    for (int i = 0; i < w; i++) {
+      row_buffer[i] = data[j * w + i];
+    }
+    
+    // Per disegnare una riga specchiata, ricrei una riga invertita e poi usi drawRGBBitmap.
+    uint16_t *mirrored_row = (uint16_t*)malloc(w * sizeof(uint16_t));
+    if (!mirrored_row) {
+        Serial.println("Errore: Impossibile allocare buffer per riga specchiata.");
+        free(row_buffer);
+        return;
+    }
+    for (int i = 0; i < w; i++) {
+        mirrored_row[i] = row_buffer[w - 1 - i];
+    }
+    
+    display.drawRGBBitmap(x, y + j, mirrored_row, w, 1); // Disegna una riga alla volta
+    
+    free(mirrored_row);
+  }
+  free(row_buffer);
+}
