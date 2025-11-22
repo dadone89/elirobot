@@ -28,16 +28,35 @@ int currentMode = MODE_STANDBY;           // Current operating mode of the robot
 // Adds a movement to the sequence.
 // The sequence has a maximum size of 9 movements (+1 for the null terminator).
 void addToSequence(char move) {
-  if (sequenceIndex < 9) {
-    moveSequence[sequenceIndex] = move;  // Add the movement
-    sequenceIndex++;                     // Increment the index
-    moveSequence[sequenceIndex] = '\0';  // Null-terminate the string
+  const int MAX_MOVES = 9; // Numero massimo di movimenti (dimensione array - 1)
+
+  if (sequenceIndex < MAX_MOVES) {
+    // Caso 1: La sequenza NON è ancora piena.
+    moveSequence[sequenceIndex] = move; // Aggiungi il movimento
+    sequenceIndex++;                    // Incrementa l'indice
   } else {
-    // If the sequence is full, reset it to start over
-    Serial.println("Sequence full, resetting.");
-    resetSequence();
-    addToSequence(move);  // Add the movement after reset
+    // Caso 2: La sequenza è piena (sequenceIndex == MAX_MOVES).
+    Serial.println("Sequence full, shifting elements.");
+
+    // 1. Sposta tutti gli elementi a sinistra di una posizione.
+    // L'elemento in moveSequence[0] viene sovrascritto (perso).
+    // Usiamo un semplice loop per lo spostamento. In C++ si potrebbe usare std::memmove,
+    // ma in Arduino un loop for è spesso più semplice e sicuro.
+    for (int i = 0; i < MAX_MOVES - 1; i++) {
+      moveSequence[i] = moveSequence[i + 1];
+    }
+
+    // 2. Aggiungi il nuovo movimento all'ultima posizione valida (indice MAX_MOVES - 1 = 8).
+    moveSequence[MAX_MOVES - 1] = move;
+    
+    // NOTA: Non serve aggiornare sequenceIndex perché rimane a MAX_MOVES (9) 
+    // e funge da indicatore che la sequenza è piena.
   }
+
+  // Assicurati che la sequenza sia sempre terminata correttamente
+  // L'indice 9 (moveSequence[9]) è sempre il terminatore nullo, 
+  // perché MAX_MOVES è 9, e l'array è di dimensione 10.
+  moveSequence[MAX_MOVES] = '\0';
 }
 
 // Resets the movement sequence.

@@ -59,7 +59,7 @@
 // Movement duration in milliseconds in sequence mode
 #define MOVE_DURATION 2000
 // ADC value corresponding to maximum speed in follow mode
-#define ADC_FOR_MAX_SPEED 500
+#define ADC_FOR_MAX_SPEED 400
 
 // Definitions of robot operating modes
 #define MODE_STANDBY 0
@@ -91,7 +91,7 @@
 // Thresholds for decoding ADC values (12-bit ADC: 0-4095)
 // These thresholds are specific to buttons connected to analog pins.
 int thresholdsA0[] = { 0, 1200, 2200, 2800, 3050, 3600 };
-int thresholdsA1[] = { 0, 1600, 2400, 2880, 3600, 4000 };
+int thresholdsA1[] = { 0, 1600, 2400, 2800, 3600, 4000 };
 
 // Array of string pointers for audio file names
 const char *audioFiles[] = {
