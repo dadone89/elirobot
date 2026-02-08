@@ -11,6 +11,12 @@
 #include "audio.h"        // For audio playback and tone functions
 #include "occhio.h"       // Includes functions for eyes management
 
+// BLE extern variables
+extern volatile int bleCurrentCommand;
+extern volatile unsigned long lastBlePacketTime;
+extern volatile int bleCurrentCommand;
+extern bool bleConnected;
+
 // Forward declarations of functions
 void resetSequence();
 
@@ -28,16 +34,28 @@ int currentMode = MODE_STANDBY;           // Current operating mode of the robot
 // Adds a movement to the sequence.
 // The sequence has a maximum size of 9 movements (+1 for the null terminator).
 void addToSequence(char move) {
-  if (sequenceIndex < 9) {
-    moveSequence[sequenceIndex] = move;  // Add the movement
-    sequenceIndex++;                     // Increment the index
-    moveSequence[sequenceIndex] = '\0';  // Null-terminate the string
+  const int MAX_MOVES = 9;  // Max movements (array dimension - 1)
+
+  if (sequenceIndex < MAX_MOVES) {
+    // Sequence not full.
+    moveSequence[sequenceIndex] = move;  // Add movement
+    sequenceIndex++;                     // Increase index
   } else {
-    // If the sequence is full, reset it to start over
-    Serial.println("Sequence full, resetting.");
-    resetSequence();
-    addToSequence(move);  // Add the movement after reset
+    // Sequence full (sequenceIndex == MAX_MOVES).
+    Serial.println("Sequence full, shifting elements.");
+
+    // Move elements one position left.
+    // the element moveSequence[0] will be override (losed).
+    for (int i = 0; i < MAX_MOVES - 1; i++) {
+      moveSequence[i] = moveSequence[i + 1];
+    }
+
+    // Add new element at last position
+    moveSequence[MAX_MOVES - 1] = move;
   }
+
+  // Ensure that the sequence is correcty terminated.
+  moveSequence[MAX_MOVES] = '\0';
 }
 
 // Resets the movement sequence.
@@ -124,7 +142,7 @@ void handleSequenceMode(int currentButtonA0, int currentButtonA1, int lastButton
         playTone(NOTE_G4, TONE_DURATION_MS);  // Play a tone for feedback
         drawNormalImage(tft1, occhio, 0);
         drawMirroredImage(tft2, occhio, -20);
-        startPlayback();                      // Start playback
+        startPlayback();  // Start playback
       } else {
         Serial.println("No sequence recorded!");
       }
@@ -134,35 +152,58 @@ void handleSequenceMode(int currentButtonA0, int currentButtonA1, int lastButton
 
 // Handles the logic for Remote Control mode (direct robot control).
 void handleRemoteMode(int currentButtonA1, int lastButtonA1) {
-  static unsigned long lastRemoteCommand = 0;  // Timestamp of the last received command
   unsigned long currentTime = millis();
+  int effectiveCommand = BTN_NONE;
 
+  // Phisical key priorities
   if (currentButtonA1 != BTN_NONE) {
-    // Execute the movement corresponding to the pressed button
-    switch (currentButtonA1) {
+    effectiveCommand = currentButtonA1;
+  }
+  // Mem last cmd if no stop botton received
+  else if (bleConnected && bleCurrentCommand != BTN_NONE) {
+    effectiveCommand = bleCurrentCommand;
+  }
+
+  // Cmd execute
+  if (effectiveCommand != BTN_NONE) {
+    switch (effectiveCommand) {
       case BTN_U:
-        moveBackward();
-        Serial.println("Remote: Backward");
+        moveBackward();  // TODO correction needed
         break;
       case BTN_D:
         moveForward();
-        Serial.println("Remote: Forward");
         break;
       case BTN_L:
         moveLeft();
-        Serial.println("Remote: Left");
         break;
       case BTN_R:
         moveRight();
-        Serial.println("Remote: Right");
+        break;
+        // Eyes
+      case BTN_EYE_SX_OPEN:
+        Serial.println("CMD: SX Open");
+        drawNormalImage(tft1, occhio, 0);
+        stopMotors();
+        break;
+      case BTN_EYE_SX_CLOSE:
+        Serial.println("CMD: SX Close");
+        drawFlippedImage(tft1, happy, 0);
+        stopMotors();
+        break;
+      case BTN_EYE_DX_OPEN:
+        Serial.println("CMD: DX Open");
+        drawMirroredImage(tft2, occhio, -20);
+        stopMotors();
+        break;
+      case BTN_EYE_DX_CLOSE:
+        Serial.println("CMD: DX Close");
+        drawMirroredAndFlippedImage(tft2, happy, -20);
+        stopMotors();
         break;
     }
-    lastRemoteCommand = currentTime;  // Update the timestamp of the last command
   } else {
-    // If no command for more than 100ms, stop motors to prevent unintended movements
-    if (currentTime - lastRemoteCommand > 100) {
-      stopMotors();
-    }
+    // if no commands, stop motors
+    stopMotors();
   }
 }
 

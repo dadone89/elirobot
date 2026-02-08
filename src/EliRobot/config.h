@@ -57,9 +57,9 @@
 #define MOD_FOLLOW_AUDIO "/Inseguo la luce.wav"
 
 // Movement duration in milliseconds in sequence mode
-#define MOVE_DURATION 2000
+#define MOVE_DURATION 950
 // ADC value corresponding to maximum speed in follow mode
-#define ADC_FOR_MAX_SPEED 500
+#define ADC_FOR_MAX_SPEED 400
 
 // Definitions of robot operating modes
 #define MODE_STANDBY 0
@@ -87,11 +87,15 @@
 #define BTN_U 1   // Up Button (connected to A1)
 #define BTN_R 2   // Right Button (connected to A1)
 #define BTN_D 3   // Down Button (connected to A1)
+#define BTN_EYE_SX_OPEN  10  // Eye sx open (TFT1)
+#define BTN_EYE_SX_CLOSE 11  // Eye sx close (TFT1)
+#define BTN_EYE_DX_OPEN  12  // Eye dx open (TFT2)
+#define BTN_EYE_DX_CLOSE 13  // Eye dx close (TFT2)
 
 // Thresholds for decoding ADC values (12-bit ADC: 0-4095)
 // These thresholds are specific to buttons connected to analog pins.
 int thresholdsA0[] = { 0, 1200, 2200, 2800, 3050, 3600 };
-int thresholdsA1[] = { 0, 1600, 2400, 2880, 3600, 4000 };
+int thresholdsA1[] = { 0, 1600, 2400, 2800, 3600, 4000 };
 
 // Array of string pointers for audio file names
 const char *audioFiles[] = {
