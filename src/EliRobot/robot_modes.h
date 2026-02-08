@@ -11,6 +11,12 @@
 #include "audio.h"        // For audio playback and tone functions
 #include "occhio.h"       // Includes functions for eyes management
 
+// BLE extern variables
+extern volatile int bleCurrentCommand;
+extern volatile unsigned long lastBlePacketTime;
+extern volatile int bleCurrentCommand;
+extern bool bleConnected; // Utile per fermarsi se si perde la connessione Bluetooth
+
 // Forward declarations of functions
 void resetSequence();
 
@@ -153,35 +159,37 @@ void handleSequenceMode(int currentButtonA0, int currentButtonA1, int lastButton
 
 // Handles the logic for Remote Control mode (direct robot control).
 void handleRemoteMode(int currentButtonA1, int lastButtonA1) {
-  static unsigned long lastRemoteCommand = 0;  // Timestamp of the last received command
   unsigned long currentTime = millis();
+  int effectiveCommand = BTN_NONE;
 
+  // Phisical key priorities
   if (currentButtonA1 != BTN_NONE) {
-    // Execute the movement corresponding to the pressed button
-    switch (currentButtonA1) {
+    effectiveCommand = currentButtonA1;
+  } 
+  // Mem last cmd if no stop botton received
+  else if (bleConnected && bleCurrentCommand != BTN_NONE) {
+    effectiveCommand = bleCurrentCommand;
+  }
+
+  // Cmd execute
+  if (effectiveCommand != BTN_NONE) {
+    switch (effectiveCommand) {
       case BTN_U:
-        moveBackward();
-        Serial.println("Remote: Backward");
+        moveBackward(); // TODO correction needed
         break;
       case BTN_D:
         moveForward();
-        Serial.println("Remote: Forward");
         break;
       case BTN_L:
         moveLeft();
-        Serial.println("Remote: Left");
         break;
       case BTN_R:
         moveRight();
-        Serial.println("Remote: Right");
         break;
     }
-    lastRemoteCommand = currentTime;  // Update the timestamp of the last command
   } else {
-    // If no command for more than 100ms, stop motors to prevent unintended movements
-    if (currentTime - lastRemoteCommand > 100) {
-      stopMotors();
-    }
+    // if no commands, stop motors
+    stopMotors();
   }
 }
 

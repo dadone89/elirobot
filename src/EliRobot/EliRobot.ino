@@ -5,6 +5,7 @@
 #include "audio.h"        // Includes audio playback and tone functions
 #include "robot_modes.h"  // Includes functions for mode management
 #include "occhio.h"       // Includes functions for eyes management
+#include "ble_joystick.h" // ble joystick management
 
 // Servo instances (defined here and declared 'extern' in hardware_io.h)
 Servo myservo1;
@@ -21,6 +22,9 @@ void setup() {
   delay(1000);
 
   Serial.println("=== ESP32 Robot Controller + Audio Player ===");
+
+  // Inizializza BLE
+  setupBLE();
 
   // Init displays
   initializeEyeDisplays();
@@ -67,6 +71,9 @@ void setup() {
 }
 
 void loop() {
+  // BLE connection management (background, not locking)
+  loopBLE();
+
   // Read analog values from button pins
   int analog0 = getStableAnalogRead(BUTTONS_PIN_0);
   int analog1 = getStableAnalogRead(BUTTONS_PIN_1);
