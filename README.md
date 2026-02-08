@@ -1,5 +1,5 @@
 ![Development Status](https://img.shields.io/badge/Status-Stable-brightgreen)
-![Version](https://img.shields.io/badge/Version-1.0.1-blue)
+![Version](https://img.shields.io/badge/Version-1.1.0-blue)
 ![Build](https://img.shields.io/badge/Build-Stable-brightgreen)
 
 # elirobot
