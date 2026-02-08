@@ -38,13 +38,13 @@ Il protocollo BLE di questi dispositivi economici permette solitamente **una sol
 
 Il progetto include due script principali distinti:
 
-### 1. Scanner BLE (`scanner.ino`)
+### 1. Scanner BLE (`BLE_scan.ino`)
 Questo script serve per la prima configurazione.
 * **Funzione:** Scansiona l'ambiente circostante alla ricerca di dispositivi BLE.
 * **Output:** Stampa su Monitor Seriale l'indirizzo **MAC Address**, il nome del dispositivo e la potenza del segnale (RSSI).
 * **Utilizzo:** Esegui questo script per scoprire l'indirizzo MAC univoco del tuo telecomando (es. `ff:25:12:xx:xx:xx`), necessario per lo step successivo.
 
-### 2. Client NimBLE (`client_nimble.ino`)
+### 2. Client NimBLE (`BLE_telecomando.ino`)
 Questo è lo script operativo principale.
 * **Libreria:** Utilizza `NimBLE-Arduino` per una gestione della memoria più efficiente rispetto alla libreria standard.
 * **Funzione:** Si connette all'indirizzo MAC specificato, scansiona i servizi disponibili e si iscrive alle notifiche (Subscribe).
@@ -64,7 +64,7 @@ Questo è lo script operativo principale.
 ## 💡 Troubleshooting e Consigli
 
 ### Modalità di Avvio (Boot Modes)
-Il Magicsee R1 può avviarsi in modalità diverse (Android, iOS, Mouse Mode) premendo combinazioni di tasti all'accensione (es. `M + Power` o solo `Power`).
+Il Magicsee R1 può avviarsi in modalità diverse (Android, iOS, Mouse Mode) premendo combinazioni di tasti all'accensione (es. `M + B`).
 * Se l'ESP32 si connette ma ricevi dati incomprensibili, prova a spegnere il telecomando e riaccenderlo con una combinazione diversa.
 
 ### Risparmio Energetico
