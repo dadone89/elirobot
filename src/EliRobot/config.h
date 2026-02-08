@@ -87,6 +87,10 @@
 #define BTN_U 1   // Up Button (connected to A1)
 #define BTN_R 2   // Right Button (connected to A1)
 #define BTN_D 3   // Down Button (connected to A1)
+#define BTN_EYE_SX_OPEN  10  // Eye sx open (TFT1)
+#define BTN_EYE_SX_CLOSE 11  // Eye sx close (TFT1)
+#define BTN_EYE_DX_OPEN  12  // Eye dx open (TFT2)
+#define BTN_EYE_DX_CLOSE 13  // Eye dx close (TFT2)
 
 // Thresholds for decoding ADC values (12-bit ADC: 0-4095)
 // These thresholds are specific to buttons connected to analog pins.

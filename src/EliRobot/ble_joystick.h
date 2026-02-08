@@ -14,32 +14,52 @@ volatile int bleCurrentCommand = BTN_NONE;
 volatile unsigned long lastBlePacketTime = 0;
 
 // Callback
+// In ble_joystick.h -> notifyCB
+
 void notifyCB(NimBLERemoteCharacteristic* pRemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
 
-  if (length > 0) {
+  // DEBUG (check key, config only)
+  /*
+  Serial.print("BLE HEX: ");
+  for (size_t i = 0; i < length; i++) {
+    Serial.printf("%02X ", pData[i]);
+  }
+  Serial.println();
+  */
 
-    uint8_t cmd = pData[0];
+  if (length > 1) {  // Check
+    uint8_t byte0 = pData[0];
+    uint8_t byte1 = pData[1];
 
-    // IMPORTANT: Replace with controller codes
-    switch (cmd) {
-      case 0x02:
-        bleCurrentCommand = BTN_U;
+    switch (byte1) {
+      // Joypad
+      case 0x90: bleCurrentCommand = BTN_U; break;
+      case 0x10: bleCurrentCommand = BTN_D; break;
+      case 0x60: bleCurrentCommand = BTN_L; break;
+      case 0x40: bleCurrentCommand = BTN_R; break;
+
+      // Lx eye
+      case 0x52:  // A key
+        bleCurrentCommand = BTN_EYE_SX_OPEN;
         break;
-      case 0x01:
-        bleCurrentCommand = BTN_D;
+      case 0x51:  // C key
+        bleCurrentCommand = BTN_EYE_SX_CLOSE;
         break;
-      case 0x20:
-        bleCurrentCommand = BTN_L;
+
+      // Rx eye and release cmd, complicated case
+      case 0x50:
+        // Check byte 0 for discriminate keys
+        if (byte0 == 0x01) {
+          bleCurrentCommand = BTN_EYE_DX_OPEN;
+        } else if (byte0 == 0x02) {
+          bleCurrentCommand = BTN_EYE_DX_CLOSE;
+        } else {
+          // if byte 0 == 0 is a real release
+          bleCurrentCommand = BTN_NONE;
+        }
         break;
-      case 0x10:
-        bleCurrentCommand = BTN_R;
-        break;
-      // Release
-      case 0x00:
-        bleCurrentCommand = BTN_NONE;
-        break;
+
       default:
-        // Opzional: ignore other keys
         // bleCurrentCommand = BTN_NONE;
         break;
     }

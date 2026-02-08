@@ -15,7 +15,7 @@
 extern volatile int bleCurrentCommand;
 extern volatile unsigned long lastBlePacketTime;
 extern volatile int bleCurrentCommand;
-extern bool bleConnected; // Utile per fermarsi se si perde la connessione Bluetooth
+extern bool bleConnected;
 
 // Forward declarations of functions
 void resetSequence();
@@ -34,34 +34,27 @@ int currentMode = MODE_STANDBY;           // Current operating mode of the robot
 // Adds a movement to the sequence.
 // The sequence has a maximum size of 9 movements (+1 for the null terminator).
 void addToSequence(char move) {
-  const int MAX_MOVES = 9; // Numero massimo di movimenti (dimensione array - 1)
+  const int MAX_MOVES = 9;  // Max movements (array dimension - 1)
 
   if (sequenceIndex < MAX_MOVES) {
-    // Caso 1: La sequenza NON è ancora piena.
-    moveSequence[sequenceIndex] = move; // Aggiungi il movimento
-    sequenceIndex++;                    // Incrementa l'indice
+    // Sequence not full.
+    moveSequence[sequenceIndex] = move;  // Add movement
+    sequenceIndex++;                     // Increase index
   } else {
-    // Caso 2: La sequenza è piena (sequenceIndex == MAX_MOVES).
+    // Sequence full (sequenceIndex == MAX_MOVES).
     Serial.println("Sequence full, shifting elements.");
 
-    // 1. Sposta tutti gli elementi a sinistra di una posizione.
-    // L'elemento in moveSequence[0] viene sovrascritto (perso).
-    // Usiamo un semplice loop per lo spostamento. In C++ si potrebbe usare std::memmove,
-    // ma in Arduino un loop for è spesso più semplice e sicuro.
+    // Move elements one position left.
+    // the element moveSequence[0] will be override (losed).
     for (int i = 0; i < MAX_MOVES - 1; i++) {
       moveSequence[i] = moveSequence[i + 1];
     }
 
-    // 2. Aggiungi il nuovo movimento all'ultima posizione valida (indice MAX_MOVES - 1 = 8).
+    // Add new element at last position
     moveSequence[MAX_MOVES - 1] = move;
-    
-    // NOTA: Non serve aggiornare sequenceIndex perché rimane a MAX_MOVES (9) 
-    // e funge da indicatore che la sequenza è piena.
   }
 
-  // Assicurati che la sequenza sia sempre terminata correttamente
-  // L'indice 9 (moveSequence[9]) è sempre il terminatore nullo, 
-  // perché MAX_MOVES è 9, e l'array è di dimensione 10.
+  // Ensure that the sequence is correcty terminated.
   moveSequence[MAX_MOVES] = '\0';
 }
 
@@ -149,7 +142,7 @@ void handleSequenceMode(int currentButtonA0, int currentButtonA1, int lastButton
         playTone(NOTE_G4, TONE_DURATION_MS);  // Play a tone for feedback
         drawNormalImage(tft1, occhio, 0);
         drawMirroredImage(tft2, occhio, -20);
-        startPlayback();                      // Start playback
+        startPlayback();  // Start playback
       } else {
         Serial.println("No sequence recorded!");
       }
@@ -165,7 +158,7 @@ void handleRemoteMode(int currentButtonA1, int lastButtonA1) {
   // Phisical key priorities
   if (currentButtonA1 != BTN_NONE) {
     effectiveCommand = currentButtonA1;
-  } 
+  }
   // Mem last cmd if no stop botton received
   else if (bleConnected && bleCurrentCommand != BTN_NONE) {
     effectiveCommand = bleCurrentCommand;
@@ -175,7 +168,7 @@ void handleRemoteMode(int currentButtonA1, int lastButtonA1) {
   if (effectiveCommand != BTN_NONE) {
     switch (effectiveCommand) {
       case BTN_U:
-        moveBackward(); // TODO correction needed
+        moveBackward();  // TODO correction needed
         break;
       case BTN_D:
         moveForward();
@@ -185,6 +178,27 @@ void handleRemoteMode(int currentButtonA1, int lastButtonA1) {
         break;
       case BTN_R:
         moveRight();
+        break;
+        // Eyes
+      case BTN_EYE_SX_OPEN:
+        Serial.println("CMD: SX Open");
+        drawNormalImage(tft1, occhio, 0);
+        stopMotors();
+        break;
+      case BTN_EYE_SX_CLOSE:
+        Serial.println("CMD: SX Close");
+        drawFlippedImage(tft1, happy, 0);
+        stopMotors();
+        break;
+      case BTN_EYE_DX_OPEN:
+        Serial.println("CMD: DX Open");
+        drawMirroredImage(tft2, occhio, -20);
+        stopMotors();
+        break;
+      case BTN_EYE_DX_CLOSE:
+        Serial.println("CMD: DX Close");
+        drawMirroredAndFlippedImage(tft2, happy, -20);
+        stopMotors();
         break;
     }
   } else {
