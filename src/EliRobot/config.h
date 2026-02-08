@@ -57,7 +57,7 @@
 #define MOD_FOLLOW_AUDIO "/Inseguo la luce.wav"
 
 // Movement duration in milliseconds in sequence mode
-#define MOVE_DURATION 1000
+#define MOVE_DURATION 950
 // ADC value corresponding to maximum speed in follow mode
 #define ADC_FOR_MAX_SPEED 400
 
